@@ -1,42 +1,58 @@
 #include <input.h>
 #include <spectrum.h>
-
+#include <im2.h>
 
 #include "levels.h"
+#include "sound.h"
 
 /*
 
 MEMORY MAP:
 
 25000 - 25767 : Font
+
 25768 - 25783 : Player Sprite
-25784 - 25799 : Tiles
+25784 - 25799 : Player Sprite Frame 2
 
-...
-
+25800 -       : Tiles
 32768 -       : Code
-
+50176 - 50432 : IM2 Table
+50433	      : Previous I value
+50629 - 50631 : Interrupt jump instruction
 */
 
 #define SCREEN_ATTRIBUTES 	22528
+#define BORDCR			23624
+
 #define FONT 			25000
 #define TILES 			25768
+#define INTERRUPT_TABLE		0xc400	// 50176
+#define INTERRUPT_JUMP		0xc5c5
+#define INTERRUPT_STORE		50433
 
-#define TILE_BYTES	32
-#define TILE_PLAYER	TILES
-#define TILE_TILE	TILE_PLAYER + TILE_BYTES
-#define TILE_BLANK	TILE_TILE + TILE_BYTES
-#define TILE_STAR	TILE_BLANK + TILE_BYTES
+#define TILE_BYTES		32
+
+#define TILE_PLAYER		TILES
+#define TILE_PLAYER2		TILE_PLAYER + TILE_BYTES
+#define TILE_PLAYER_R90		TILE_PLAYER2 + TILE_BYTES
+#define TILE_PLAYER_R180	TILE_PLAYER_R90 + TILE_BYTES
+#define TILE_PLAYER_R270	TILE_PLAYER_R180 + TILE_BYTES
+#define TILE_TILE		TILE_PLAYER_R270 + TILE_BYTES
+
+#define TILE_BLANK		TILE_TILE + TILE_BYTES
+#define TILE_SQUARES		TILE_BLANK + TILE_BYTES
+#define TILE_STAR		TILE_SQUARES + TILE_BYTES
 
 #define X_OFFSET	4
 #define ATRR_LINE_WIDTH	32
 #define KEYBOARD_WAIT	10
 #define LIVES		3
-#define START_LEVEL	2
+#define START_LEVEL	1
 
 #define STATE_PLAYING	1
 #define STATE_DEAD	2
 #define STATE_LEVELUP	3
+#define STATE_GAMEOVER	4
 
 struct in_UDK k;
 void *joystick;
@@ -45,9 +61,9 @@ char level_buffer[LEVEL_BUFFER_SIZE];
 char game_over[]="GAME OVER!";
 char rem_blocks[4]="000";
 char life_count[4]="a:?";
-//"111111211211100000100101104000000001101010101001101131313101100000001001100000001001100000001001210111111004110100000000010111111111121111111111";
+char lookup[]= "0123456789";
+int interrupt_timer = 0;
 
-//={0}; // 144 + 1
 
 /*
 128 If the character position is flashing, 0 if it is steady 
@@ -62,7 +78,6 @@ char block_attrs[MAX_TILES]={0 * 8 + 7, 1 * 8 +7, 4 * 8 + 7, 5 * 8 + 7, 2 * 8 + 
 // Takes a number and sticks in a string buffer.
 void my_itoa(int value, char *buffer, int buffer_len)
 	{
-	char lookup[]= "0123456789";
 	char i;
 
 	// Fill string with leading zeros.
@@ -95,7 +110,10 @@ void rect(char attr, char x, char y, char w, char h)
 		i2 = 1;
 		
 		for(; i2 <= w; i2++)
+			{
 			*p = attr;
+			p++;
+			}
 			
 		y = y + 1;
 		}
@@ -131,8 +149,15 @@ void border(char c)
 	ld hl,2
 	add hl,sp		// skip over return address on stack
 
-	ld a,(hl)		// c = y	
+	ld a,(hl)		// a = c	
 	out (254),a
+		
+	// multiply border by 8 and store in BORDCR system variable
+	// otherwise subsequent calls to BEEPER zaps the border colour.
+	rlca
+	rlca
+	rlca
+	ld (BORDCR), a	
 	
 	#endasm
 	}
@@ -293,11 +318,11 @@ void draw_text(char x, char y, char *text)
 		}
 	}
 	
-void draw_player(char x, char y)
+void draw_player(char x, char y, char frame)
 	{
 	// Draw the player tile.
-	unsigned char *tile = TILE_PLAYER;
-	draw_tile((x * 2) + X_OFFSET, (y * 2), tile);
+	unsigned char *p = TILE_PLAYER + (frame * TILE_BYTES);
+	draw_tile((x * 2) + X_OFFSET, (y * 2), p);
 	}
 	
 void draw_level_tile(char x, char y, char b)
@@ -340,19 +365,37 @@ void draw_level()
 	
 	//draw_text(8,20, level->name);
 		
-	draw_player(px, py);
+	draw_player(px, py, 0);
 	draw_text(0,23, rem_blocks);
 	rect(2,0,21,1,1);
 	life_count[2] = 0x30 + lives;
 	draw_text(0,21, life_count);
-	
-	//draw_text(2,21, &life_count[2]);
+	}
+
+void draw_death()
+	{
+	// Start at frame 2.
+	char frame = 2, i = 0;
+	// Set red on black colours at player location.	
+	rect(2, (px * 2) + X_OFFSET, py * 2, 2, 2);
+	// Spin the character around.			
+	for(; i < 4; i++)
+		{
+		draw_player(px, py, frame);
+		frame++;
+		if(frame > 4)
+			frame = 0;
+		#asm
+		halt
+		halt
+		halt
+		#endasm
+		}
 	}
 	
 void move(char x, char y)
 	{
 	char new_x, new_y, prev;
-//	unsigned char *tile;
 	int offset;
 		
 	new_x = px + x;
@@ -361,36 +404,45 @@ void move(char x, char y)
 	if(new_x < 0 || new_x==LEVEL_WIDTH || new_y < 0 || new_y==LEVEL_HEIGHT)
 		return;
 
+	// Calculate our new offset into the level data.
 	offset = (new_y * LEVEL_WIDTH) + new_x;
-/*	
-	*p = offset;
-	p++;
-	p++;
-	*p = level_buffer[offset];
-	
-	#asm
-	
-brk:
-	jr brk
 
-	#endasm
-*/	
 	// Have we moved onto a blank tile?
 	if(level_buffer[offset]==0x30)
-		{
 		state = STATE_DEAD;
-		return;
+	else if(level_buffer[offset]==0x35)
+		{
+		// Teleport block.
+		// Remove teleport.
+		level_buffer[offset] = 0x30;
+		draw_level_tile(new_x, new_y, 0x30);	
+		
+		offset = 0;
+		new_x = 0;
+		new_y = 0;
+		// Find area to teleport to (first 0x34 tile in level?).
+		while(level_buffer[offset]!=0x34)
+			{
+			new_x++;
+			if(new_x==LEVEL_WIDTH)
+				{
+				new_x = 0;
+				new_y++;
+				}
+			offset++;
+			}
 		}
-	
-	// Decrement the tile we were on.
+
 	offset = (py * LEVEL_WIDTH) + px;
-	prev = level_buffer[offset];
+	prev = level_buffer[offset];	
+	
+	// Try and decrement the tile we were on.
 	if(prev < 0x34)
 		{
 		// We can decrement this tile.
 		prev--;
 		level_buffer[offset] = prev;
-		if(prev==0x30)
+		if(state!=STATE_DEAD && prev==0x30)
 			{
 			remaining--;
 			my_itoa(remaining, rem_blocks, 3);
@@ -401,13 +453,18 @@ brk:
 				}
 			}
 		}
-	// Erase our previous player position by redrawing the tile.
+
+	// Erase our previous player position by redrawing the tile at that position.
 	draw_level_tile(px, py, prev);
 	
 	px = new_x;
 	py = new_y;
 	
-	draw_player(px, py);
+	draw_player(px, py, 0);
+	
+	if(state!=STATE_DEAD)
+		// Play movement sound.
+		sound_effect(200,20);
 	}
 	
 void init_level(int level)
@@ -427,6 +484,7 @@ void init_level(int level)
 			{
 			case 0x30:
 			case 0x34:
+			case 0x35:
 				break;
 			default:
 				remaining++;
@@ -449,16 +507,98 @@ void init()
 	joystick = in_JoyKeyboard;
 	lives = LIVES;
 	level = START_LEVEL;
-	}		
+	}
+	
+// IM2 function.	
+M_BEGIN_ISR(isr)
+	{
+	switch(state)
+		{
+		case STATE_PLAYING:
+			{
+			interrupt_timer++;
+
+			if(interrupt_timer==250)
+				// Make the player blink.
+				draw_player(px, py, 1);
+			if(interrupt_timer==255)
+				{
+				// Redraw normal player image.
+				draw_player(px, py, 0);
+				interrupt_timer = 0;
+				}
+			}
+			break;
+			
+		}
+		
+	}
+M_END_ISR	
+	
+void interrupts(char install)
+	{
+	unsigned short *p;
+
+	if(install)
+		{
+		// Install interrupt handler.
+		p = INTERRUPT_JUMP + 1;
+		// Copy interrupt function address to $c5c5 + 1.
+		*p = isr;
+		#asm
+		di
+			
+		// Create our 256 interrupt table.
+		ld hl, INTERRUPT_TABLE
+		ld (hl), $c5
+		ld de, INTERRUPT_TABLE + 1
+		ld bc, 257
+		ldir		
+		
+		// Put a jp instruction to our interrupt function at $c5c5
+		ld hl,$c5c5
+		ld a, 195
+		ld (hl),a
+
+		// Save I register (primarily so we can go back to basic).
+		ld a, i
+		ld (INTERRUPT_STORE),a
+
+		// Switch to IM2.
+		ld a,$c4
+		ld i, a
+		im 2
+		ei
+		#endasm
+		}
+	else
+		{
+		#asm		
+		di
+		//  Restore old I.
+		ld a,(INTERRUPT_STORE)
+		ld i,a
+		im 1
+		ei
+			
+		#endasm
+		}
+	}
+
+
 	
 main()
 	{
-	char in_game = 1, wait = 0;
+	char wait = 0;
 	unsigned char direction;
 	
+	border(0);
 	cls(6);
+
 		
 	init();
+	
+	interrupts(1);
 		
 	state = STATE_PLAYING;
 	
@@ -509,14 +649,14 @@ main()
 			{
 			case STATE_DEAD:
 				{
-				// Lose a life!
-				border(2);
-				border(0);
-				border(2);
-				border(0);
+				draw_death();
+					
+				// Lose a life!					
+				sound_effect(600,250);
 					
 				lives--;
 				state = STATE_PLAYING;
+				interrupt_timer = 0;
 				}
 				break;
 				
@@ -529,9 +669,14 @@ main()
 			}
 		}
 
+	state = STATE_GAMEOVER;
+		
 	cls(7);
 
 	draw_text(10,10, game_over);
+
+	interrupts(0);		
+	
 	}
 	
 
