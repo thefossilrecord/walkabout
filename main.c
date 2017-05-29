@@ -2,8 +2,18 @@
 #include <spectrum.h>
 #include <im2.h>
 
+#include "graphics.h"
 #include "levels.h"
 #include "sound.h"
+
+/*
+
+TO DO:
+
+- Code entry
+- Scroller / effects on menu?
+
+*/
 
 /*
 
@@ -21,9 +31,6 @@ MEMORY MAP:
 50629 - 50631 : Interrupt jump instruction
 */
 
-#define SCREEN_ATTRIBUTES 	22528
-#define BORDCR			23624
-
 #define FONT 			25000
 #define TILES 			25768
 #define INTERRUPT_TABLE		0xc400	// 50176
@@ -39,38 +46,45 @@ MEMORY MAP:
 #define TILE_PLAYER_R270	TILE_PLAYER_R180 + TILE_BYTES
 #define TILE_TILE		TILE_PLAYER_R270 + TILE_BYTES
 
-#define TILE_BLANK		TILE_TILE + TILE_BYTES
-#define TILE_SQUARES		TILE_BLANK + TILE_BYTES
-#define TILE_STAR		TILE_SQUARES + TILE_BYTES
+#define TILE_BACKGROUND_BLANK	TILE_TILE + TILE_BYTES
+#define TILE_BACKGROUND_SQUARES	TILE_BACKGROUND_BLANK + TILE_BYTES
+#define TILE_BACKGROUND_STAR	TILE_BACKGROUND_SQUARES + TILE_BYTES
+#define MAX_BACKGROUND	3
 
 #define X_OFFSET	4
-#define ATRR_LINE_WIDTH	32
 #define KEYBOARD_WAIT	10
 #define LIVES		3
 #define START_LEVEL	1
 
-#define STATE_PLAYING	1
-#define STATE_DEAD	2
-#define STATE_LEVELUP	3
-#define STATE_GAMEOVER	4
+#define STATE_MENU	1
+#define STATE_CODE	2
+#define STATE_PLAYING	3
+#define STATE_DEAD	4
+#define STATE_LEVELUP	5
+#define STATE_GAMEOVER	6
+
+#define INPUT_KEYS	1
+#define INPUT_KEMPSTON	2
+#define INPUT_SINCLAIR1	3
+#define INPUT_SINCLAIR2	4
 
 struct in_UDK k;
 void *joystick;
-char px, py, state, lives, level, remaining;
+char px, py, state, lives, level, remaining, backg, backg_attr, input;
 char level_buffer[LEVEL_BUFFER_SIZE];
 char game_over[]="GAME OVER!";
 char rem_blocks[4]="000";
-char life_count[4]="a:?";
+char life_count[4]="^:?";
+char level_txt[4]="LVL";
+char level_count[4]="000";
 char lookup[]= "0123456789";
 int interrupt_timer = 0;
-
-
-/*
-128 If the character position is flashing, 0 if it is steady 
-64 if the character position is bright, 0 if it is normal 
-8* the code for the paper colour 
-the code for the ink colour
-*/
+unsigned char *backgrounds[MAX_BACKGROUND]=
+	{
+	TILE_BACKGROUND_BLANK,
+	TILE_BACKGROUND_SQUARES,
+	TILE_BACKGROUND_STAR
+	};
 
 // black, blue, green, cyan, red, magenta
 char block_attrs[MAX_TILES]={0 * 8 + 7, 1 * 8 +7, 4 * 8 + 7, 5 * 8 + 7, 2 * 8 + 7, 3 * 8 + 7};
@@ -99,201 +113,32 @@ void my_itoa(int value, char *buffer, int buffer_len)
 		}
 	}
 
-// Draws an attribute rectangle at x,y - w by h.	
-void rect(char attr, char x, char y, char w, char h)
-	{
-	unsigned char *p;
-	char i1 = 1, i2;
-	for(; i1 <= h; i1++)
-		{
-		p = SCREEN_ATTRIBUTES + (y * ATRR_LINE_WIDTH) + x;
-		i2 = 1;
-		
-		for(; i2 <= w; i2++)
-			{
-			*p = attr;
-			p++;
-			}
-			
-		y = y + 1;
-		}
-	}
-
-// Erases the screen and sets an initial attribute value.
-void cls(int attr)
-	{
-	#asm
-		
-	ld hl,16384
-	ld (hl),l
-	ld de,16385
-	ld bc,6143
-	ldir
-		
-	ld hl,2
-	add hl,sp		// skip over return address on stack	
-	ld a,(hl)
-	ld hl,SCREEN_ATTRIBUTES
-	ld (hl),a
-	ld de,SCREEN_ATTRIBUTES + 1
-	ld bc,767
-	ldir
-		
-	#endasm
-	}
-	
-void border(char c)
-	{
-	#asm
-		
-	ld hl,2
-	add hl,sp		// skip over return address on stack
-
-	ld a,(hl)		// a = c	
-	out (254),a
-		
-	// multiply border by 8 and store in BORDCR system variable
-	// otherwise subsequent calls to BEEPER zaps the border colour.
-	rlca
-	rlca
-	rlca
-	ld (BORDCR), a	
-	
-	#endasm
-	}
-
 /*
-		ld	a, $7f
-		in	a, (254)
-		rra
-		jr	nc, exit
-		jr	main
-
-		xor a
-		in a, (254)
-		bit 2,a
-		
-		bit 3,a
-	
-*/	
-	
-// Adapted assembly function from 'alexlotl' at
-// https://www.rllmukforum.com/index.php?/topic/299583-adventures-in-zx-spectrum-dev/
-// Co-ordinates loaded into bc
-// Co-ordinate screen address returned in hl
-unsigned char * addr_from_coords(char x, char y)
+// Waits till any key is pressed. Borrowed from the ROM KEY_SCAN routine at $028e.
+// https://skoolkid.github.io/rom/asm/028E.html	
+void any_key()
 	{
 	#asm
 		
-	ld hl,2
-	add hl,sp		// skip over return address on stack
-
-	ld c,(hl)		// c = y
-	inc hl			// need to skip 2 bytes
-	inc hl
-	ld b,(hl)		// b = x
-		
-	ld a,c 			// copy y-coord to accumulator
-	and %00011000		// Wipes out all but the bits relating to band
-	or %01000000		// adds the 010 prefix
-	ld h,a			// copy to MSB of destination
-	ld a,c			// re-copy y-coord to accumulator
-	and %00000111		// Wipes out all but the bits relating to row within band
-	rra			// rotate right 4 times: 0000 00YY (Y)
-	rra			// Y000 000Y (Y)
-	rra			// YY00 0000 (Y)
-	rra			// YYY0 0000 (0)
-	add a,b			// simply add x-coord
-	ld l,a			// hl now contains address
-
-	#endasm
-	}
-
-void draw_block(unsigned char *address, unsigned char *tile)
-	{
-/*		
-	int index = 0;
-	for(;index < 8; index ++)
-		{
-		*address = *tile;
-		tile++;
-		address = address + 256;
-		}
-*/		
-	#asm
-		
-	ld hl,2
-	add hl,sp		// skip over return address on stack
-
-	ld e,(hl)		// put tile into de
-	inc hl			 
-	ld d,(hl)
-	inc hl
-	ld c,(hl)		// put address into bc
-	inc hl
-	ld b,(hl)
-	ld h,b			// copy address into hl
-	ld l,c
-	ld b,8			// loop 8 times
-		
-copy:
-	ld a,(de)
-	ld (hl),a
-	inc de
-	inc h
-	dec b
-	jr nz,copy
-
-	#endasm
-		
-	}		
+	ld l,$2f 	// The initial key value for each line will be +2F, +2E,..., +28. (Eight lines)
+	ld bc,$fefe 	// C=port address, B=counter.	
 	
-void draw_block2(unsigned char *address, unsigned char *tile)
-	{
-/*		
-	int index = 0;
-	for(;index < 8; index ++)
-		{
-		*address = *tile;
-		tile++;
-		address++;
-		*address = *tile;
-		address = address + 255;
-		tile++;
-		}		
-*/		
-	#asm
-		
-	ld hl,2
-	add hl,sp		// skip over return address on stack
+check_line:
+	in a,(c) 	// Read from the port specified.
+	cpl 		// A pressed key in the line will set its respective bit, from bit 0 (outer key) to bit 4 (inner key).
+	and $1f
+	jr nz,end	// Jump forward if one of the five keys in the line are being pressed.
 
-	ld e,(hl)		// put tile into de
-	inc hl			 
-	ld d,(hl)
-	inc hl
-	ld c,(hl)		// put address into bc
-	inc hl
-	ld b,(hl)
-	ld h,b			// copy address into hl
-	ld l,c
-	ld b,8			// loop 8 times
+	dec l	 	// Move to next line.
 		
-copy2:
-	ld a,(de)
-	ld (hl),a
-	inc de
-	inc hl
-	ld a,(de)
-	ld (hl),a
-	inc de
-	dec hl
-	inc h
-	dec b
-	jr nz,copy2
+	rlc b 		// The counter is shifted and the jump taken if there are still lines to be scanned.
+	jr c,check_line
+
+	end:
 
 	#endasm
-	
-	}
+	}	
+*/
 
 // Draw a 16x16 tile.	
 void draw_tile(char x, char y, unsigned char *tile)
@@ -331,6 +176,14 @@ void draw_level_tile(char x, char y, char b)
 	unsigned char *p = SCREEN_ATTRIBUTES + ((y * 2) * 32) + (x * 2) + X_OFFSET;
 
 	char attr = block_attrs[b - 48]; // Subtract ASCII 0 from block.
+
+	if(attr==7)
+		{
+		// Drawing a blank.
+		tile = backgrounds[backg];
+		attr = backg_attr;
+		}
+
 	// Fill in 2x2 attributes for tile colour.
 	*p = attr;
 	p++;
@@ -339,10 +192,6 @@ void draw_level_tile(char x, char y, char b)
 	*p = attr;
 	p++;
 	*p = attr;	
-
-	if(attr==7)
-		// Drawing a blank.
-		tile = TILE_STAR;//BLANK;
 
 	draw_tile(X_OFFSET + (x * 2), y * 2, tile);
 	}
@@ -363,13 +212,21 @@ void draw_level()
 			}
 		}	
 	
-	//draw_text(8,20, level->name);
-		
 	draw_player(px, py, 0);
+	// Draw remaining blocks.
 	draw_text(0,23, rem_blocks);
+	// Colour text.
+	rect(6,0,21,3,3);
 	rect(2,0,21,1,1);
+	// Draw life counter.	
 	life_count[2] = 0x30 + lives;
 	draw_text(0,21, life_count);
+	
+	// Draw level count.
+	rect(6,29,21,3,3);	
+	draw_text(29,21, level_txt);
+	my_itoa(level, level_count, 3);
+	draw_text(29,23, level_count);
 	}
 
 void draw_death()
@@ -467,6 +324,12 @@ void move(char x, char y)
 		sound_effect(200,20);
 	}
 	
+void set_state(char new_state)
+	{
+	state = new_state;
+	interrupt_timer = 0;
+	}
+	
 void init_level(int level)
 	{
 	int copy = 0;
@@ -474,7 +337,11 @@ void init_level(int level)
 	char *data = current_level->data;
 	px = current_level->start_x;
 	py = current_level->start_y;
+	backg = current_level->backg;
+	backg_attr = current_level->attr;
 	remaining = 0;
+
+	rect(backg_attr, 4, 0, LEVEL_WIDTH * 2, 24);
 
 	// Copy level to our buffer.
 	for(; copy < LEVEL_BUFFER_SIZE; copy++)
@@ -495,18 +362,141 @@ void init_level(int level)
 	my_itoa(remaining, rem_blocks, 3);
 	}
 
-void init()
+void do_init()
 	{
-	k.fire  = in_LookupKey('m');
-	k.left  = in_LookupKey('o');
-	k.right = in_LookupKey('p');
-	k.up    = in_LookupKey('q');
-	k.down  = in_LookupKey('a');
+	cls(0);
+		
+	switch(input)
+		{
+		case INPUT_KEYS:
+			{
+			// Even though we're not using fire it has to be initialised otherwise
+			// the keyboard handling doesn't work.
+			k.fire = in_LookupKey('');
+			k.left  = in_LookupKey('o');
+			k.right = in_LookupKey('p');
+			k.up    = in_LookupKey('q');
+			k.down  = in_LookupKey('a');
 	
-	// !!!		
-	joystick = in_JoyKeyboard;
+			joystick = in_JoyKeyboard;
+			}
+			break;
+			
+		case INPUT_KEMPSTON:
+			{	
+			joystick = in_JoyKempston;
+			}
+			break;
+
+		case INPUT_SINCLAIR1:
+			{	
+			joystick = in_JoySinclair1;
+			}
+			break;
+
+		case INPUT_SINCLAIR2:
+			{
+			joystick = in_JoySinclair2;
+			}
+			break;
+		}
+
 	lives = LIVES;
-	level = START_LEVEL;
+	}
+
+char check_menu_keys()
+	{
+	#asm
+	ld hl,9		// 9 means we didn't select anything.
+		
+	// Test for 0.
+	ld bc, 61438	// (6, 7, 8, 9, 0)
+	in a,(c)
+	rra
+	jr c, check
+	ld hl, 0
+	jr exit
+	
+check:		
+	ld bc, 63486
+	in a,(c)
+	rra
+		
+	jr c, check1
+	ld hl, INPUT_KEYS
+	jr exit
+check1:
+	rra
+		
+	jr c, check2
+	ld hl, INPUT_KEMPSTON
+	jr exit
+check2:
+	rra
+		
+	jr c, check3
+	ld hl, INPUT_SINCLAIR1
+	jr exit
+check3:	
+	rra
+		
+	jr c, exit
+	ld hl, INPUT_SINCLAIR2
+
+exit:
+		
+	#endasm
+	}
+
+#define MENU_OPTIONS_LINE	12
+	
+char do_menu()
+	{
+	char new_input, i;
+	
+	cls(6);
+	
+	// Draw a pretty border :).
+	for(i = 0; i < 24;i=i+2)
+		{
+		draw_tile(0, i, backgrounds[2]);	
+		draw_tile(30, i, backgrounds[2]);	
+		}
+	for(i = 2; i < 30;i=i+2)
+		{
+		draw_tile(i, 0, backgrounds[2]);	
+		draw_tile(i, 22, backgrounds[2]);	
+		}
+		
+	draw_text(9,4, "^ WALKABOUT ^");
+	draw_text(9,6, "BY BOB FOSSIL");
+	draw_text(7,(MENU_OPTIONS_LINE - 2), "0: PLAY GAME");
+	draw_text(7, MENU_OPTIONS_LINE, "1: KEYBOARD (QAOP)");
+	draw_text(7, MENU_OPTIONS_LINE+1, "2: KEMPSTON");
+	draw_text(7, MENU_OPTIONS_LINE+2, "3: SINCLAIR PORT 1");
+	draw_text(7, MENU_OPTIONS_LINE+3, "4: SINCLAIR PORT 2");
+		
+	rect(7,7,(MENU_OPTIONS_LINE - 2),18,6);
+	rect(15,7,(MENU_OPTIONS_LINE - 1) + input,18,1);	
+
+	while(1)
+		{
+		new_input = check_menu_keys();	
+		if(new_input!=9)
+			{
+			// We pressed a key.
+			if(!new_input)
+				return;
+			if(input!=new_input)
+				{
+				// Remove old highlight.
+				rect(7,7,(MENU_OPTIONS_LINE - 1) + input,18,1);
+				// Draw new one.
+				rect(15,7,(MENU_OPTIONS_LINE - 1) + new_input,18,1);
+				input = new_input;
+				}
+			}
+		}	
 	}
 	
 // IM2 function.	
@@ -530,6 +520,13 @@ M_BEGIN_ISR(isr)
 			}
 			break;
 			
+		case STATE_GAMEOVER:
+			{
+			interrupt_timer++;
+			if(interrupt_timer==200)
+				set_state(STATE_MENU);
+			}
+			break;
 		}
 		
 	}
@@ -585,98 +582,190 @@ void interrupts(char install)
 		}
 	}
 
-
 	
-main()
+uchar in_KeyDebounce = 1;       // no debouncing
+uchar in_KeyStartRepeat = 0;   // wait 20/50s before key starts repeating
+uchar in_KeyRepeatPeriod = 0;//10;  // repeat every 10/50s
+uint in_KbdState;               // reserved
+
+void do_code()
 	{
-	char wait = 0;
-	unsigned char direction;
+	int len = 0, ascii;
+	char code[LEVEL_CODE_SIZE];
+	unsigned char *p = 16384;
+	cls(7);
 	
-	border(0);
-	cls(6);
-
+	for(;len <=LEVEL_CODE_SIZE; len++)
+		code[len] = 0x0;
 		
-	init();
-	
-	interrupts(1);
+	len = 0;
 		
-	state = STATE_PLAYING;
-	
-	while(lives)
+	set_state(STATE_CODE);
+		
+	draw_text(7,10,"ENTER LEVEL CODE:");
+	rect(15, 11,12,9,1);
+		
+	while(len!=9)
 		{
-		init_level(level);
-
-		draw_level();
-			
-		while(state==STATE_PLAYING)
+		ascii = in_GetKey();
+		if(ascii)
 			{
-			if(!wait)
-				{
-				direction = (joystick)(&k);
-				if(direction & in_FIRE)
-					state = STATE_DEAD;
-				else if(direction==in_UP)
-					{
-					move(0, -1);
-					wait = KEYBOARD_WAIT;
-					}
-				else if(direction==in_DOWN)
-					{
-					move(0, 1);
-					wait = KEYBOARD_WAIT;
-					}				
-				else if(direction==in_LEFT)
-					{
-					move(-1, 0);
-					wait = KEYBOARD_WAIT;
-					}
-				else if(direction==in_RIGHT)
-					{
-					move(1, 0);
-					wait = KEYBOARD_WAIT;
-					}
-				}
-			else
-				{
-				wait--;
-#asm
-				halt
-#endasm		
-				}
-			}
-		
-		switch(state)
-			{
-			case STATE_DEAD:
-				{
-				draw_death();
-					
-				// Lose a life!					
-				sound_effect(600,250);
-					
-				lives--;
-				state = STATE_PLAYING;
-				interrupt_timer = 0;
-				}
-				break;
+			*p = ascii;
 				
-			case STATE_LEVELUP:
+			// In lower case a-z range?
+			if(ascii > 0x60 && ascii < 0x7b)
+				// Shift down to UPPER case.
+				ascii = ascii - 0x20;
+			
+			// In UPPER case A-Z range?
+			if(ascii > 0x40 && ascii < 0x5b) 
 				{
-				level++;
-				state = STATE_PLAYING;	
+				// Add character to code.
+				code[len]= ascii;
+				len++;
+					
+				draw_text(11, 12, code);
+//				ascii = 0;
+//				for(; ascii < KEYBOARD_WAIT; ascii++)
+//					{
+//					#asm
+//					halt
+//					#endasm
+//					}
 				}
+				
+			if(ascii==0xc && len)
+				{
+				// Pressed DELETE.
+				code[len]= 0;
+				draw_text(11 + len, 12, " ");
+				len--;
+				}
+				
+			if(ascii==0xd)
+				// Pressed ENTER.
 				break;
 			}
 		}
-
-	state = STATE_GAMEOVER;
 		
-	cls(7);
-
-	draw_text(10,10, game_over);
-
-	interrupts(0);		
+	// Try and match our code.
+	level = find_level_from_code(code);
+	}
 	
+main()
+	{
+	char wait = 0, i;
+	unsigned char direction;
+	input = INPUT_KEYS;
+		
+	border(0);
+
+	in_GetKeyReset();
+		
+	set_state(STATE_MENU);
+
+	interrupts(1);
+
+	while(1)
+		{		
+		do_menu();
+			
+		do_code();
+						
+		do_init();
+
+		set_state(STATE_PLAYING);
+			
+		wait = 0;
+		
+		while(lives)
+			{
+			init_level(level);
+
+			draw_level();
+				
+			while(state==STATE_PLAYING)
+				{
+				if(!wait)
+					{
+					direction = (joystick)(&k);
+					if(direction==in_UP)
+						{
+						move(0, -1);
+						wait = KEYBOARD_WAIT;
+						}
+					else if(direction==in_DOWN)
+						{
+						move(0, 1);
+						wait = KEYBOARD_WAIT;
+						}				
+					else if(direction==in_LEFT)
+						{
+						move(-1, 0);
+						wait = KEYBOARD_WAIT;
+						}
+					else if(direction==in_RIGHT)
+						{
+						move(1, 0);
+						wait = KEYBOARD_WAIT;
+						}
+					}
+				else
+					{
+					wait--;
+#asm
+					halt
+#endasm		
+					}
+				}
+			
+			switch(state)
+				{
+				case STATE_DEAD:
+					{
+					draw_death();
+						
+					// Lose a life!					
+					sound_effect(600,250);
+						
+					lives--;
+					set_state(STATE_PLAYING);
+					rect(0, 4, 0, LEVEL_WIDTH * 2, 24);	
+					}
+					break;
+					
+				case STATE_LEVELUP:
+					{
+					for(i = 0; i < 6;i++)
+						sound_effect(160,120);
+					fade();
+					
+					cls(7);
+					draw_text(X_OFFSET, 12, "LEVEL CODE:    ");
+					draw_text(19, 12, get_level_code(level));
+						
+					level++;
+
+					// Wait for a keypress.
+					while(!in_GetKey());
+
+					cls(0);
+					set_state(STATE_PLAYING);	
+					}
+					break;
+				}
+			}
+			
+		cls(7);
+
+		draw_text(10,10, game_over);
+
+		// Interrupt will set us back to STATE_MENU.
+		set_state(STATE_GAMEOVER);
+		while(state==STATE_GAMEOVER);
+		}
+		
+	interrupts(0);
 	}
 	
 
