@@ -1,10 +1,30 @@
 
 #include "levels.h"
+
+// Level codes generated from http://listofrandomwords.com/.
 	
+// 0 blank
+// 1 squares
+// 2 stars
+	
+
 struct level_data levels[MAX_LEVELS] = 
 	{
 		{
-		"LEVEL 1",
+		"",
+		"000000000000"
+		"000000000000"
+		"004111114000"
+		"000000000000"
+		"000000000000"
+		"000000000000"
+		"000000000000"
+		"000000000000"
+		"000000000000"
+		"000000000000"
+		"000000000000"
+		"000000000000",			
+/*			
 		"111111211211"
 		"100000100101"
 		"104000000001"
@@ -17,11 +37,14 @@ struct level_data levels[MAX_LEVELS] =
 		"110100000000"
 		"010111111111"
 		"121111111111",
+*/			
 		2,
-		2
+		2,
+		5,
+		1
 		},
 		{
-		"LEVEL 2",
+		"SONNETEER",
 		"512222222222"
 		"000000000002"
 		"222222222222"
@@ -35,10 +58,12 @@ struct level_data levels[MAX_LEVELS] =
 		"200000000000"
 		"222222222215",
 		5,
-		5
+		5,
+		48,
+		2
 		},
 		{
-		"LEVEL 3",
+		"VOODOOING",
 		"411111111111"
 		"100000000001"
 		"101111111111"
@@ -52,10 +77,12 @@ struct level_data levels[MAX_LEVELS] =
 		"100000000001"
 		"111111111111",
 		0,
+		0,
+		48,
 		0
 		},
 		{
-		"LEVEL 4",
+		"PERIMEDES",
 		"505050505050"
 		"212121212121"
 		"323232323232"
@@ -69,10 +96,12 @@ struct level_data levels[MAX_LEVELS] =
 		"101010101010"
 		"444444444444",
 		0,
-		11
+		11,
+		48,
+		0
 		},
 		{
-		"LEVEL 5",
+		"GARIFALIA",
 		"011001100110"
 		"433113311335"
 		"211331133110"
@@ -86,10 +115,12 @@ struct level_data levels[MAX_LEVELS] =
 		"011331133110"
 		"000110011000",
 		0,
-		1
+		1,
+		48,
+		0
 		},
 		{
-		"LEVEL 6",
+		"SALVATORE",
 		"000000000000"
 		"010013100100"
 		"121002001210"
@@ -103,10 +134,12 @@ struct level_data levels[MAX_LEVELS] =
 		"001010222005"
 		"000000000000",
 		0,
-		6
+		6,
+		48,
+		0
 		},
 		{
-		"LEVEL 7",
+		"RUFESCENT",
 		"111500005111"
 		"133100001331"
 		"133100001331"
@@ -120,10 +153,12 @@ struct level_data levels[MAX_LEVELS] =
 		"002200002200"
 		"002200002200",
 		4,
-		3
+		3,
+		48,
+		0
 		},
 		{
-		"LEVEL 8",
+		"INEFFABLE",
 		"010101010100"
 		"021212121210"
 		"433333333331"
@@ -137,10 +172,12 @@ struct level_data levels[MAX_LEVELS] =
 		"021212121210"
 		"010101010100",
 		0,
-		2
+		2,
+		48,
+		0
 		},
 		{
-		"LEVEL 9",
+		"AFFIDAVIT",
 		"111111111111"
 		"111111111111"
 		"111111111111"
@@ -154,10 +191,12 @@ struct level_data levels[MAX_LEVELS] =
 		"111111111111"
 		"111111111115",
 		6,
-		5
+		5,
+		48,
+		0
 		},
 		{
-		"LEVEL 10",
+		"LEADBELLY",
 		"003111111300"
 		"003004400300"
 		"013101100300"
@@ -171,10 +210,12 @@ struct level_data levels[MAX_LEVELS] =
 		"003001100300"
 		"003111111300",
 		5,
-		1
+		1,
+		48,
+		0
 		},
 		{
-		"LEVEL 11",
+		"ZEBRAFISH",
 		"000131131000"
 		"000020020000"
 		"000020020000"
@@ -188,10 +229,12 @@ struct level_data levels[MAX_LEVELS] =
 		"000020020000"
 		"000131131000",
 		4,
-		4
+		4,
+		48,
+		0
 		},
 		{
-		"LEVEL 12",
+		"TREBUCHET",
 		"000000000310"
 		"111000003310"
 		"331100033110"
@@ -205,10 +248,12 @@ struct level_data levels[MAX_LEVELS] =
 		"013300000111"
 		"013000000000",
 		5,
-		5
+		5,
+		48,
+		0
 		},
 		{
-		"LEVEL 13",
+		"BYZANTINE",
 		"000000000000"
 		"011211211211"
 		"111201201201"
@@ -222,10 +267,12 @@ struct level_data levels[MAX_LEVELS] =
 		"003303303305"
 		"000000000000",
 		0,
-		3
+		3,
+		48,
+		0
 		},
 		{
-		"LEVEL 14",
+		"MUSCAVADO",
 		"033331133330"
 		"031131131130"
 		"031131131130"
@@ -239,10 +286,12 @@ struct level_data levels[MAX_LEVELS] =
 		"131133331130"
 		"000000000040",
 		10,
-		11
+		11,
+		48,
+		0
 		},
 		{
-		"LEVEL 15",
+		"LOXODROME",
 		"000000000000"
 		"000000111333"
 		"000000111333"
@@ -256,10 +305,12 @@ struct level_data levels[MAX_LEVELS] =
 		"333011100000"
 		"400011150000",
 		0,
-		11
+		11,
+		48,
+		0
 		},
 		{
-		"LEVEL 16",
+		"RAFFINATE",
 		"113311111111"
 		"102201010101"
 		"100002121211"
@@ -273,10 +324,12 @@ struct level_data levels[MAX_LEVELS] =
 		"011101121212"
 		"411111010101",
 		0,
-		11
+		11,
+		48,
+		0
 		},
 		{
-		"LEVEL 17",
+		"GLUTENOUS",
 		"000000000002"
 		"000000000023"
 		"000000000221"
@@ -290,10 +343,12 @@ struct level_data levels[MAX_LEVELS] =
 		"001210000000"
 		"000100000000",
 		0,
-		4
+		4,
+		48,
+		0
 		},
 		{
-		"LEVEL 18",
+		"AESTHETIC",
 		"222222110011"
 		"222222110011"
 		"000022110011"
@@ -307,10 +362,12 @@ struct level_data levels[MAX_LEVELS] =
 		"222222400011"
 		"222222400011",
 		6,
-		10
+		10,
+		48,
+		0
 		},
 		{
-		"LEVEL 19",
+		"ENVELOPED",
 		"500002220000"
 		"100222222000"
 		"102222222220"
@@ -324,10 +381,12 @@ struct level_data levels[MAX_LEVELS] =
 		"000222222000"
 		"000002220000",
 		11,
-		6
+		6,
+		48,
+		0
 		},
 		{
-		"LEVEL 20",
+		"NOTORIOUS",
 		"000011110000"
 		"000111111000"
 		"000101101000"
@@ -341,6 +400,40 @@ struct level_data levels[MAX_LEVELS] =
 		"011121121110"
 		"040010010040",
 		1,
-		11
+		11,
+		48,
+		0
 		},
 	};
+
+char * get_level_code(char level)
+	{
+	return(&levels[level].code);
+	}
+
+int find_level_from_code(char *code)
+	{
+	int level = 0, check, matched;
+	while(level < MAX_LEVELS)
+		{
+		matched = 0;
+		check = 0;
+		while(check < LEVEL_CODE_SIZE)
+			{
+			if(code[check]==levels[level].code[check])
+				matched++;
+			else
+				break;
+			
+			check++;
+			}
+			
+		if(matched==LEVEL_CODE_SIZE)
+			return level + 1;
+			
+		level++;
+		}
+	
+	level = 1;
+	return level;
+	}
