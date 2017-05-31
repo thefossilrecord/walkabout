@@ -40,8 +40,8 @@ struct level_data levels[MAX_LEVELS] =
 */			
 		2,
 		2,
-		5,
-		1
+		59,
+		5
 		},
 		{
 		"SONNETEER",
@@ -60,7 +60,7 @@ struct level_data levels[MAX_LEVELS] =
 		5,
 		5,
 		48,
-		2
+		1
 		},
 		{
 		"VOODOOING",
