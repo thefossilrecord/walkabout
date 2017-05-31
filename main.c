@@ -10,8 +10,9 @@
 
 TO DO:
 
-- Code entry
 - Scroller / effects on menu?
+- Add backgrounds and colours to all levels.
+- Replace menu asm input with C keyboard?
 
 */
 
@@ -49,7 +50,11 @@ MEMORY MAP:
 #define TILE_BACKGROUND_BLANK	TILE_TILE + TILE_BYTES
 #define TILE_BACKGROUND_SQUARES	TILE_BACKGROUND_BLANK + TILE_BYTES
 #define TILE_BACKGROUND_STAR	TILE_BACKGROUND_SQUARES + TILE_BYTES
-#define MAX_BACKGROUND	3
+#define TILE_BACKGROUND_MESH	TILE_BACKGROUND_STAR + TILE_BYTES
+#define TILE_BACKGROUND_HEART	TILE_BACKGROUND_MESH + TILE_BYTES
+#define TILE_BACKGROUND_STRIPES	TILE_BACKGROUND_HEART + TILE_BYTES
+
+#define MAX_BACKGROUND	6
 
 #define X_OFFSET	4
 #define KEYBOARD_WAIT	10
@@ -70,7 +75,7 @@ MEMORY MAP:
 
 struct in_UDK k;
 void *joystick;
-char px, py, state, lives, level, remaining, backg, backg_attr, input;
+char px, py, state, lives, level, remaining, backg, backg_attr, input, scroll_rem;
 char level_buffer[LEVEL_BUFFER_SIZE];
 char game_over[]="GAME OVER!";
 char rem_blocks[4]="000";
@@ -78,12 +83,18 @@ char life_count[4]="^:?";
 char level_txt[4]="LVL";
 char level_count[4]="000";
 char lookup[]= "0123456789";
+char scroll_text[]="WALKABOUT - ALL CODE, GFX AND PLIP PLOP MUSIC BY BOB FOSSIL.";
+char *scroll_char;
+	
 int interrupt_timer = 0;
 unsigned char *backgrounds[MAX_BACKGROUND]=
 	{
 	TILE_BACKGROUND_BLANK,
 	TILE_BACKGROUND_SQUARES,
-	TILE_BACKGROUND_STAR
+	TILE_BACKGROUND_STAR,
+	TILE_BACKGROUND_MESH,
+	TILE_BACKGROUND_HEART,
+	TILE_BACKGROUND_STRIPES,
 	};
 
 // black, blue, green, cyan, red, magenta
@@ -143,15 +154,15 @@ check_line:
 // Draw a 16x16 tile.	
 void draw_tile(char x, char y, unsigned char *tile)
 	{
-	unsigned char *p = addr_from_coords(x,y);
+	unsigned char *p = zx_cyx2saddr(y, x);//addr_from_coords(x,y);//
 	draw_block2(p, tile);
-	p = addr_from_coords(x,y+1);
+	p = zx_cyx2saddr(y+1, x);//addr_from_coords(x,y+1);
 	draw_block2(p,tile + 16);
 	}
 	
 void draw_text(char x, char y, char *text)
 	{
-	unsigned char *p = addr_from_coords(x,y);	
+	unsigned char *p = zx_cyx2saddr(y,x);//	addr_from_coords(x,y);//
 	while(*text)
 		{
 		char offset = (*text) - 0x20;
@@ -214,16 +225,16 @@ void draw_level()
 	
 	draw_player(px, py, 0);
 	// Draw remaining blocks.
-	draw_text(0,23, rem_blocks);
+	draw_text(0, 23, rem_blocks);
 	// Colour text.
-	rect(6,0,21,3,3);
-	rect(2,0,21,1,1);
+	rect(INK_YELLOW + PAPER_BLACK, 0, 21, 3, 3);
+	rect(INK_RED + PAPER_BLACK, 0, 21, 1, 1);
 	// Draw life counter.	
 	life_count[2] = 0x30 + lives;
 	draw_text(0,21, life_count);
 	
 	// Draw level count.
-	rect(6,29,21,3,3);	
+	rect(INK_YELLOW + PAPER_BLACK, 29, 21, 3, 3);	
 	draw_text(29,21, level_txt);
 	my_itoa(level, level_count, 3);
 	draw_text(29,23, level_count);
@@ -234,7 +245,7 @@ void draw_death()
 	// Start at frame 2.
 	char frame = 2, i = 0;
 	// Set red on black colours at player location.	
-	rect(2, (px * 2) + X_OFFSET, py * 2, 2, 2);
+	rect(INK_RED + PAPER_BLACK, (px * 2) + X_OFFSET, py * 2, 2, 2);
 	// Spin the character around.			
 	for(; i < 4; i++)
 		{
@@ -333,8 +344,19 @@ void set_state(char new_state)
 void init_level(int level)
 	{
 	int copy = 0;
-	struct level_data *current_level = &levels[level - 1];
-	char *data = current_level->data;
+	struct level_data *current_level;
+	char *data;
+
+	if(level > MAX_LEVELS)
+		{
+		// Completed last level. Should probably do something better here. :)
+		// Just wrap round to the start again.
+		level = 1;
+		}
+
+	current_level = &levels[level - 1];
+	data = current_level->data;		
+		
 	px = current_level->start_x;
 	py = current_level->start_y;
 	backg = current_level->backg;
@@ -364,7 +386,7 @@ void init_level(int level)
 
 void do_init()
 	{
-	cls(0);
+	cls(INK_BLACK + PAPER_BLACK);
 		
 	switch(input)
 		{
@@ -449,12 +471,156 @@ exit:
 	}
 
 #define MENU_OPTIONS_LINE	12
+/*
+#define SCROLL_BUFFER 60160
+#define SCROLL_CHAR 60152
+#define SCROLL_WIDTH 24
 	
+void do_scroll()
+	{
+	char offset, i, ii,pp;
+	int v;
+	unsigned char *character, *p = SCROLL_CHAR;
+		
+	if(!scroll_rem)
+		{
+		// Load character into buffer.
+		offset = (*scroll_char) - 0x20;
+		character = (unsigned char *)(FONT + (offset * 8));
+					
+		for(i= 0; i < 8; i++)
+			{
+			*p = *character;
+			p++;
+			character++;
+			}
+			
+		scroll_rem = 8;
+		scroll_char++;
+		}
+	else
+		{			
+		#asm
+		ld b,8
+		ld hl,SCROLL_CHAR
+		ld de,SCROLL_BUFFER + 23
+			
+	scrollchar:
+		ld a,(hl)	// Load character into a and shift left
+		//rla
+		ld a,170
+		ld (hl),a
+		jr nc, noset
+	
+		ld (de),a	// Load last character of buffer into a
+		or 1		// Set least significant bit.
+		ld (de),a	// Put back into buffer.
+		jr nextline		
+	noset:	
+	//	ld (hl),a
+		and 254
+		ld (de),a
+		
+//	nextline:		
+//		ld a,24		// Move to next line in buffer.
+//		add a,e
+//		ld e,a
+//		dec b
+//		inc hl		// Next line in character
+//
+//		jr nz, scrollchar
+//	
+//		ld b,8
+//		
+//		ld hl,SCROLL_BUFFER + 22;	
+//	aaa1:
+//		push bc
+//		
+//		ld b, SCROLL_WIDTH - 1
+//	aaa2:	
+//		
+//		ld a,(hl)
+//		rla
+//		ld (hl),a
+//		jr nc, noset1
+//		dec hl
+//		ld a,(hl)
+//		or 1
+//		ld (hl),a
+//	
+//	noset1:
+//		dec hl
+//		dec b
+//		jr nz,aaa2
+//		
+//		
+//		ld de,46
+//		add hl,de
+
+//	hhhh:
+//		jr hhhh
+
+
+		pop bc
+		dec b
+		jr nz,aaa1
+		
+		#endasm
+
+		
+//		for(i = 0; i < 8; i++)
+//			{
+//			p = (unsigned char *)(SCROLL_BUFFER + 22 + (i*SCROLL_WIDTH));
+//			for(ii=0; ii < SCROLL_WIDTH -1; ii++)
+//				{
+//				v = *p;
+//				v = v << 1;					
+//				*p = (v & 0x7f);
+//				p--;
+//				if(v > 128)
+//					*p = *p | 1;
+//				}
+//			}
+//	
+		
+
+
+		scroll_rem--;
+		}
+	
+	#asm
+		
+	halt
+
+	#endasm
+		
+	character = (unsigned char *)SCROLL_BUFFER;
+	for(i = 0; i < 8;i++)
+		{
+		p = (unsigned char *)(20612 + (i * 256));
+		for(ii = 0; ii < SCROLL_WIDTH; ii++)
+			{
+			*p = *character;
+			character++;
+			p++;
+			}
+		}
+				
+	if(*scroll_char==0)
+		// Reset the scroll.
+		scroll_char = &scroll_text[0];
+		
+	}
+*/
+
 char do_menu()
 	{
 	char new_input, i;
 	
-	cls(6);
+	cls(INK_YELLOW + PAPER_BLACK);
+		
+//	scroll_char = &scroll_text[0];
+//	scroll_rem = 0;
 	
 	// Draw a pretty border :).
 	for(i = 0; i < 24;i=i+2)
@@ -476,8 +642,8 @@ char do_menu()
 	draw_text(7, MENU_OPTIONS_LINE+2, "3: SINCLAIR PORT 1");
 	draw_text(7, MENU_OPTIONS_LINE+3, "4: SINCLAIR PORT 2");
 		
-	rect(7,7,(MENU_OPTIONS_LINE - 2),18,6);
-	rect(15,7,(MENU_OPTIONS_LINE - 1) + input,18,1);	
+	rect(INK_WHITE + PAPER_BLACK, 7, (MENU_OPTIONS_LINE - 2), 18, 6);
+	rect(INK_WHITE + PAPER_BLUE, 7, (MENU_OPTIONS_LINE - 1) + input, 18, 1);	
 
 	while(1)
 		{
@@ -490,12 +656,14 @@ char do_menu()
 			if(input!=new_input)
 				{
 				// Remove old highlight.
-				rect(7,7,(MENU_OPTIONS_LINE - 1) + input,18,1);
+				rect(INK_WHITE + PAPER_BLACK, 7, (MENU_OPTIONS_LINE - 1) + input,18,1);
 				// Draw new one.
-				rect(15,7,(MENU_OPTIONS_LINE - 1) + new_input,18,1);
+				rect(INK_WHITE + PAPER_BLUE, 7, (MENU_OPTIONS_LINE - 1) + new_input,18,1);
 				input = new_input;
 				}
 			}
+
+		//do_scroll();
 		}	
 	}
 	
@@ -588,12 +756,15 @@ uchar in_KeyStartRepeat = 0;   // wait 20/50s before key starts repeating
 uchar in_KeyRepeatPeriod = 0;//10;  // repeat every 10/50s
 uint in_KbdState;               // reserved
 
+#define CODE_X_POS	11
+#define CODE_Y_POS	12
+	
 void do_code()
 	{
 	int len = 0, ascii;
 	char code[LEVEL_CODE_SIZE];
-	unsigned char *p = 16384;
-	cls(7);
+
+	cls(INK_WHITE + PAPER_BLACK);
 	
 	for(;len <=LEVEL_CODE_SIZE; len++)
 		code[len] = 0x0;
@@ -603,49 +774,49 @@ void do_code()
 	set_state(STATE_CODE);
 		
 	draw_text(7,10,"ENTER LEVEL CODE:");
-	rect(15, 11,12,9,1);
+	rect(INK_WHITE + PAPER_BLUE, CODE_X_POS, CODE_Y_POS, LEVEL_CODE_SIZE - 1, 1);
 		
-	while(len!=9)
+	while(1)
 		{
 		ascii = in_GetKey();
 		if(ascii)
 			{
-			*p = ascii;
-				
 			// In lower case a-z range?
 			if(ascii > 0x60 && ascii < 0x7b)
 				// Shift down to UPPER case.
 				ascii = ascii - 0x20;
 			
 			// In UPPER case A-Z range?
-			if(ascii > 0x40 && ascii < 0x5b) 
+			if(ascii > 0x40 && ascii < 0x5b && len < LEVEL_CODE_SIZE - 1) 
 				{
 				// Add character to code.
 				code[len]= ascii;
+				if(len < LEVEL_CODE_SIZE - 2)
 				len++;
 					
-				draw_text(11, 12, code);
-//				ascii = 0;
-//				for(; ascii < KEYBOARD_WAIT; ascii++)
-//					{
-//					#asm
-//					halt
-//					#endasm
-//					}
+				draw_text(CODE_X_POS, 12, code);
 				}
 				
-			if(ascii==0xc && len)
+			if(ascii==0xc && len >=0)
 				{
 				// Pressed DELETE.
+				if(len)
+					len--;
+					
 				code[len]= 0;
-				draw_text(11 + len, 12, " ");
-				len--;
+				draw_text(CODE_X_POS + len, 12, " ");
 				}
 				
 			if(ascii==0xd)
 				// Pressed ENTER.
 				break;
+			
+			// Typing echo noise (also adds a delay which makes the typing
+			// less twitchy.
+			sound_effect(250,30);
 			}
+			
+			
 		}
 		
 	// Try and match our code.
@@ -656,14 +827,14 @@ main()
 	{
 	char wait = 0, i;
 	unsigned char direction;
-	input = INPUT_KEYS;
-		
+				
 	border(0);
-
+	input = INPUT_KEYS;
 	in_GetKeyReset();
 		
 	set_state(STATE_MENU);
-
+	
+	// Install IM2 handler.
 	interrupts(1);
 
 	while(1)
@@ -730,7 +901,7 @@ main()
 						
 					lives--;
 					set_state(STATE_PLAYING);
-					rect(0, 4, 0, LEVEL_WIDTH * 2, 24);	
+					rect(INK_BLACK + PAPER_BLACK, 4, 0, LEVEL_WIDTH * 2, 24);	
 					}
 					break;
 					
@@ -740,7 +911,7 @@ main()
 						sound_effect(160,120);
 					fade();
 					
-					cls(7);
+					cls(INK_WHITE + PAPER_BLACK);
 					draw_text(X_OFFSET, 12, "LEVEL CODE:    ");
 					draw_text(19, 12, get_level_code(level));
 						
@@ -749,14 +920,14 @@ main()
 					// Wait for a keypress.
 					while(!in_GetKey());
 
-					cls(0);
+					cls(INK_BLACK + PAPER_BLACK);
 					set_state(STATE_PLAYING);	
 					}
 					break;
 				}
 			}
 			
-		cls(7);
+		cls(INK_WHITE + PAPER_BLACK);
 
 		draw_text(10,10, game_over);
 
