@@ -73,39 +73,6 @@ void border(char c)
 	#endasm
 	}
 
-// Adapted assembly function from 'alexlotl' at
-// https://www.rllmukforum.com/index.php?/topic/299583-adventures-in-zx-spectrum-dev/
-// Takes x (0 - 31) and y (0 - 23) and converts to a screen address.
-// Co-ordinates loaded into bc
-// Co-ordinate screen address returned in hl
-unsigned char * addr_from_coords(char x, char y)
-	{
-	#asm
-		
-	ld hl,2
-	add hl,sp		// skip over return address on stack
-
-	ld c,(hl)		// c = y
-	inc hl			// need to skip 2 bytes
-	inc hl
-	ld b,(hl)		// b = x
-		
-	ld a,c 			// copy y-coord to accumulator
-	and %00011000		// Wipes out all but the bits relating to band
-	or %01000000		// adds the 010 prefix
-	ld h,a			// copy to MSB of destination
-	ld a,c			// re-copy y-coord to accumulator
-	and %00000111		// Wipes out all but the bits relating to row within band
-	rra			// rotate right 4 times: 0000 00YY (Y)
-	rra			// Y000 000Y (Y)
-	rra			// YY00 0000 (Y)
-	rra			// YYY0 0000 (0)
-	add a,b			// simply add x-coord
-	ld l,a			// hl now contains address
-
-	#endasm
-	}
-
 void fade()
 	{
 	#asm
@@ -159,8 +126,7 @@ copy:
 	ld (hl),a
 	inc de
 	inc h
-	dec b
-	jr nz,copy
+	djnz copy
 
 	#endasm
 		
@@ -206,8 +172,7 @@ copy2:
 	inc de
 	dec hl
 	inc h
-	dec b
-	jr nz,copy2
+	djnz copy2
 
 	#endasm
 	
