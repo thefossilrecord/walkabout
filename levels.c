@@ -6,25 +6,16 @@
 // 0 blank
 // 1 squares
 // 2 stars
+
+// block 5 paper 7 ink 3 (59)
+// block 4 paper 2 ink 0
 	
 
 struct level_data levels[MAX_LEVELS] = 
 	{
 		{
-		"",
-		"000000000000"
-		"000000000000"
-		"004111114000"
-		"000000000000"
-		"000000000000"
-		"000000000000"
-		"000000000000"
-		"000000000000"
-		"000000000000"
-		"000000000000"
-		"000000000000"
-		"000000000000",			
-/*			
+		// LEVEL 1
+		"",			
 		"111111211211"
 		"100000100101"
 		"104000000001"
@@ -36,14 +27,14 @@ struct level_data levels[MAX_LEVELS] =
 		"210111111004"
 		"110100000000"
 		"010111111111"
-		"121111111111",
-*/			
+		"121111111111",			
 		2,
 		2,
-		59,
-		5
+		5,	// PAPER 0 : INK 5
+		3	// MESH
 		},
 		{
+		// LEVEL 2			
 		"SONNETEER",
 		"512222222222"
 		"000000000002"
@@ -59,10 +50,11 @@ struct level_data levels[MAX_LEVELS] =
 		"222222222215",
 		5,
 		5,
-		48,
-		1
+		48, 	// PAPER 6 : INK 0
+		2	// STAR
 		},
 		{
+		// LEVEL 3			
 		"VOODOOING",
 		"411111111111"
 		"100000000001"
@@ -78,10 +70,11 @@ struct level_data levels[MAX_LEVELS] =
 		"111111111111",
 		0,
 		0,
-		48,
-		0
+		59,	// PAPER 7: INK 3
+		5	// STRIPES
 		},
 		{
+		// LEVEL 4
 		"PERIMEDES",
 		"505050505050"
 		"212121212121"
@@ -97,10 +90,11 @@ struct level_data levels[MAX_LEVELS] =
 		"444444444444",
 		0,
 		11,
-		48,
-		0
+		16,	// PAPER 2 : INK 0
+		4	// TOY BLOCK
 		},
 		{
+		// LEVEL 6
 		"GARIFALIA",
 		"011001100110"
 		"433113311335"
@@ -116,8 +110,8 @@ struct level_data levels[MAX_LEVELS] =
 		"000110011000",
 		0,
 		1,
-		48,
-		0
+		8,	// PAPER 1 : INK 0
+		0	// BLANK
 		},
 		{
 		"SALVATORE",
