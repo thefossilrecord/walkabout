@@ -7,10 +7,6 @@
 // 1 squares
 // 2 stars
 
-// block 5 paper 7 ink 3 (59)
-// block 4 paper 2 ink 0
-	
-
 struct level_data levels[MAX_LEVELS] = 
 	{
 		{
@@ -94,7 +90,7 @@ struct level_data levels[MAX_LEVELS] =
 		4	// TOY BLOCK
 		},
 		{
-		// LEVEL 6
+		// LEVEL 5
 		"GARIFALIA",
 		"011001100110"
 		"433113311335"
@@ -114,6 +110,7 @@ struct level_data levels[MAX_LEVELS] =
 		0	// BLANK
 		},
 		{
+		// LEVEL 6
 		"SALVATORE",
 		"000000000000"
 		"010013100100"
@@ -129,10 +126,11 @@ struct level_data levels[MAX_LEVELS] =
 		"000000000000",
 		0,
 		6,
-		48,
-		0
+		24,	// PAPER 3 : INK 0
+		6	// DOTS
 		},
 		{
+		// LEVEL 7
 		"RUFESCENT",
 		"111500005111"
 		"133100001331"
@@ -148,10 +146,11 @@ struct level_data levels[MAX_LEVELS] =
 		"002200002200",
 		4,
 		3,
-		48,
-		0
+		56,	// PAPER 7 : INK 0
+		7	// DIAMOND
 		},
 		{
+		// LEVEL 8
 		"INEFFABLE",
 		"010101010100"
 		"021212121210"
@@ -167,10 +166,11 @@ struct level_data levels[MAX_LEVELS] =
 		"010101010100",
 		0,
 		2,
-		48,
-		0
+		32,	// PAPER 4 : INK 0
+		8	// GRID
 		},
 		{
+		// LEVEL 9
 		"AFFIDAVIT",
 		"111111111111"
 		"111111111111"
@@ -186,10 +186,11 @@ struct level_data levels[MAX_LEVELS] =
 		"111111111115",
 		6,
 		5,
-		48,
-		0
+		56,	// PAPER 7 : INK 0
+		9	// NET
 		},
 		{
+		// LEVEL 10
 		"LEADBELLY",
 		"003111111300"
 		"003004400300"
@@ -205,10 +206,11 @@ struct level_data levels[MAX_LEVELS] =
 		"003111111300",
 		5,
 		1,
-		48,
-		0
+		3,	// PAPER 0 : INK 3
+		3	// MESH
 		},
 		{
+		// LEVEL 11
 		"ZEBRAFISH",
 		"000131131000"
 		"000020020000"
@@ -224,10 +226,11 @@ struct level_data levels[MAX_LEVELS] =
 		"000131131000",
 		4,
 		4,
-		48,
-		0
+		5,	// PAPER 0 : INK 5
+		1,	// SQUARES
 		},
 		{
+		// LEVEL 12
 		"TREBUCHET",
 		"000000000310"
 		"111000003310"
@@ -243,10 +246,11 @@ struct level_data levels[MAX_LEVELS] =
 		"013000000000",
 		5,
 		5,
-		48,
-		0
+		23,	// PAPER 2: INK 7
+		5	// STRIPES
 		},
 		{
+		// LEVEL 13
 		"BYZANTINE",
 		"000000000000"
 		"011211211211"
@@ -262,10 +266,11 @@ struct level_data levels[MAX_LEVELS] =
 		"000000000000",
 		0,
 		3,
-		48,
-		0
+		48,	// PAPER 6 : INK 0
+		4	// TOY BLOCK
 		},
 		{
+		// LEVEL 14
 		"MUSCAVADO",
 		"033331133330"
 		"031131131130"
@@ -281,10 +286,11 @@ struct level_data levels[MAX_LEVELS] =
 		"000000000040",
 		10,
 		11,
-		48,
-		0
+		24,	// PAPER 1 : INK 0
+		6	// DOTS
 		},
 		{
+		// LEVEL 15
 		"LOXODROME",
 		"000000000000"
 		"000000111333"
@@ -300,10 +306,11 @@ struct level_data levels[MAX_LEVELS] =
 		"400011150000",
 		0,
 		11,
-		48,
-		0
+		5,	// PAPER 0 : INK 5
+		7	// DIAMOND
 		},
 		{
+		// LEVEL 16
 		"RAFFINATE",
 		"113311111111"
 		"102201010101"
@@ -319,10 +326,11 @@ struct level_data levels[MAX_LEVELS] =
 		"411111010101",
 		0,
 		11,
-		48,
-		0
+		56,	// PAPER 7: INK 0
+		0	// BLANK
 		},
 		{
+		// LEVEL 17
 		"GLUTENOUS",
 		"000000000002"
 		"000000000023"
@@ -338,10 +346,11 @@ struct level_data levels[MAX_LEVELS] =
 		"000100000000",
 		0,
 		4,
-		48,
-		0
+		48,	// PAPER 6 : INK 0
+		1	// SQUARES
 		},
 		{
+		// LEVEL 18
 		"AESTHETIC",
 		"222222110011"
 		"222222110011"
@@ -357,10 +366,11 @@ struct level_data levels[MAX_LEVELS] =
 		"222222400011",
 		6,
 		10,
-		48,
-		0
+		6, 	// PAPER 0 : INK 6
+		2	// STAR
 		},
 		{
+		// LEVEL 19
 		"ENVELOPED",
 		"500002220000"
 		"100222222000"
@@ -376,10 +386,11 @@ struct level_data levels[MAX_LEVELS] =
 		"000002220000",
 		11,
 		6,
-		48,
-		0
+		8,	// PAPER 1 : INK 0
+		8	// GRID
 		},
 		{
+		// LEVEL 20
 		"NOTORIOUS",
 		"000011110000"
 		"000111111000"
@@ -395,8 +406,8 @@ struct level_data levels[MAX_LEVELS] =
 		"040010010040",
 		1,
 		11,
-		48,
-		0
+		32,	// PAPER 4 : INK 0
+		9	// NET
 		},
 	};
 
