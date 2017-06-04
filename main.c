@@ -20,12 +20,13 @@ MEMORY MAP:
 
 25000 - 25767 : Font
 
-25768 - 25783 : Player Sprite
+25768 - 25799 : Player Sprite
 25800 - 25831 : Player Sprite Frame 2
 25832 - 25863 : Player Sprite Rotated 90 degress
 25864 - 25895 : Player Sprite Rotated 180 degress
 25896 - 25927 : Player Sprite Rotated 270 degress
-25928 - 26279 : Level Tiles 1 - 10
+25928 - 25959 : Level Tile
+25960 - 26279 : Background Tiles 1 - 10
 
 32768 -       : Code
 50176 - 50432 : IM2 Table
