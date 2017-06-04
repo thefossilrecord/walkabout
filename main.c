@@ -1,3 +1,23 @@
+/******************************************************************************
+ *
+ * Copyright(c) 2017 Bob Fossil. All rights reserved.
+ *                                        
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
+ *
+ *
+ ******************************************************************************/
+
 #include <input.h>
 #include <spectrum.h>
 #include <im2.h>
@@ -114,33 +134,6 @@ void my_itoa(int value, char *buffer, int buffer_len)
 		}
 	}
 
-/*
-// Waits till any key is pressed. Borrowed from the ROM KEY_SCAN routine at $028e.
-// https://skoolkid.github.io/rom/asm/028E.html	
-void any_key()
-	{
-	#asm
-		
-	ld l,$2f 	// The initial key value for each line will be +2F, +2E,..., +28. (Eight lines)
-	ld bc,$fefe 	// C=port address, B=counter.	
-	
-check_line:
-	in a,(c) 	// Read from the port specified.
-	cpl 		// A pressed key in the line will set its respective bit, from bit 0 (outer key) to bit 4 (inner key).
-	and $1f
-	jr nz,end	// Jump forward if one of the five keys in the line are being pressed.
-
-	dec l	 	// Move to next line.
-		
-	rlc b 		// The counter is shifted and the jump taken if there are still lines to be scanned.
-	jr c,check_line
-
-	end:
-
-	#endasm
-	}	
-*/
-
 void draw_player(char x, char y, char frame)
 	{
 	// Draw the player tile.
@@ -244,7 +237,7 @@ void move(char x, char y)
 
 	// Have we moved onto a blank tile?
 	if(level_buffer[offset]==0x30)
-		state = STATE_DEAD;
+		set_state(STATE_DEAD);
 	else if(level_buffer[offset]==0x35)
 		{
 		// Teleport block.
@@ -284,7 +277,7 @@ void move(char x, char y)
 			draw_text(0,23, rem_blocks);
 			if(!remaining)
 				{
-				state = STATE_LEVELUP;
+				set_state(STATE_LEVELUP);
 				}
 			}
 		}
@@ -305,6 +298,7 @@ void move(char x, char y)
 void set_state(char new_state)
 	{
 	state = new_state;
+	// Reset interrupt timer.
 	interrupt_timer = 0;
 	}
 	
@@ -330,6 +324,7 @@ void init_level(int level)
 	backg_attr = current_level->attr;
 	remaining = 0;
 
+	// Set background colour for this level.
 	rect(backg_attr, 4, 0, LEVEL_WIDTH * 2, 24);
 
 	// Copy level to our buffer.
@@ -362,10 +357,10 @@ void do_init()
 			// Even though we're not using fire it has to be initialised otherwise
 			// the keyboard handling doesn't work.
 			k.fire = in_LookupKey('');
-			k.left  = in_LookupKey(keys[2]);//'o');
-			k.right = in_LookupKey(keys[3]);//'p');
-			k.up    = in_LookupKey(keys[0]);//'q');
-			k.down  = in_LookupKey(keys[1]);//'a');
+			k.left  = in_LookupKey(keys[2]);	// defaults to 'o';
+			k.right = in_LookupKey(keys[3]);	// defaults to 'p';
+			k.up    = in_LookupKey(keys[0]);	// defaults to 'q';
+			k.down  = in_LookupKey(keys[1]);	// defaults to 'a';
 	
 			joystick = (void *)in_JoyKeyboard;
 			}
@@ -462,7 +457,7 @@ void interrupts(char install)
 		ld a, 195
 		ld (hl),a
 
-		// Save I register (primarily so we can go back to basic).
+		// Save I register (primarily so we can restore interrupts and go back to basic).
 		ld a, i
 		ld (INTERRUPT_STORE),a
 
@@ -562,7 +557,9 @@ main()
 	unsigned char direction;
 				
 	border(0);
+	// Set intial menu option to keyboard.
 	menu_option = MENU_KEYS;
+	// Initialise keyboard handling.
 	in_GetKeyReset();
 		
 	set_state(STATE_MENU);
