@@ -2,15 +2,18 @@
 #include <spectrum.h>
 #include <im2.h>
 
+#include "assets.h"
 #include "graphics.h"
 #include "levels.h"
+#include "main.h"
+#include "menu.h"
 #include "sound.h"
 
 /*
 
 TO DO:
 
-- Scroller / effects on menu?
+- Effects on menu?
 - Replace menu asm input with C keyboard?
 
 MEMORY MAP:
@@ -30,33 +33,10 @@ MEMORY MAP:
 50629 - 50631 : Interrupt jump instruction
 */
 
-#define FONT 			25000
-#define TILES 			25768
+
 #define INTERRUPT_TABLE		50176	// $c400
 #define INTERRUPT_JUMP		50629	// $c5c5
 #define INTERRUPT_STORE		50433
-
-#define TILE_BYTES		32
-
-#define TILE_PLAYER		TILES
-#define TILE_PLAYER2		TILE_PLAYER + TILE_BYTES
-#define TILE_PLAYER_R90		TILE_PLAYER2 + TILE_BYTES
-#define TILE_PLAYER_R180	TILE_PLAYER_R90 + TILE_BYTES
-#define TILE_PLAYER_R270	TILE_PLAYER_R180 + TILE_BYTES
-#define TILE_TILE		TILE_PLAYER_R270 + TILE_BYTES
-
-#define TILE_BACKGROUND_BLANK		TILE_TILE + TILE_BYTES
-#define TILE_BACKGROUND_SQUARES		TILE_BACKGROUND_BLANK + TILE_BYTES
-#define TILE_BACKGROUND_STAR		TILE_BACKGROUND_SQUARES + TILE_BYTES
-#define TILE_BACKGROUND_MESH		TILE_BACKGROUND_STAR + TILE_BYTES
-#define TILE_BACKGROUND_TOYBLOCK	TILE_BACKGROUND_MESH + TILE_BYTES
-#define TILE_BACKGROUND_STRIPES		TILE_BACKGROUND_TOYBLOCK + TILE_BYTES
-#define TILE_BACKGROUND_DOTS		TILE_BACKGROUND_STRIPES + TILE_BYTES
-#define TILE_BACKGROUND_DIAMOND		TILE_BACKGROUND_DOTS + TILE_BYTES
-#define TILE_BACKGROUND_GRID		TILE_BACKGROUND_DIAMOND + TILE_BYTES
-#define TILE_BACKGROUND_NET		TILE_BACKGROUND_GRID + TILE_BYTES
-
-#define MAX_BACKGROUND	10
 
 #define X_OFFSET	4
 #define KEYBOARD_WAIT	10
@@ -65,23 +45,12 @@ MEMORY MAP:
 
 #define CODE_X_POS	11
 #define CODE_Y_POS	12
-#define MENU_OPTIONS_Y_POS	12
 
-#define STATE_MENU	1
-#define STATE_CODE	2
-#define STATE_PLAYING	3
-#define STATE_DEAD	4
-#define STATE_LEVELUP	5
-#define STATE_GAMEOVER	6
 
-#define INPUT_KEYS	1
-#define INPUT_KEMPSTON	2
-#define INPUT_SINCLAIR1	3
-#define INPUT_SINCLAIR2	4
 
 struct in_UDK k;
 void *joystick;
-char px, py, state, lives, level, remaining, backg, backg_attr, input, scroll_rem;
+char px, py, state, lives, level, remaining, backg, backg_attr;
 char level_buffer[LEVEL_BUFFER_SIZE];
 char game_over[]="GAME OVER!";
 char rem_blocks[4]="000";
@@ -91,9 +60,9 @@ char level_count[4]="000";
 char lookup[]= "0123456789";
 int interrupt_timer = 0;
 
-uchar in_KeyDebounce = 1;       // no debouncing
-uchar in_KeyStartRepeat = 0;   // wait 20/50s before key starts repeating
-uchar in_KeyRepeatPeriod = 0;//10;  // repeat every 10/50s
+uchar in_KeyDebounce = 1;	// no debouncing
+uchar in_KeyStartRepeat = 0;	// wait 20/50s before key starts repeating
+uchar in_KeyRepeatPeriod = 0;	// 10;  // repeat every 10/50s
 uint in_KbdState;               // reserved
 
 unsigned char *backgrounds[MAX_BACKGROUND]=
@@ -110,8 +79,15 @@ unsigned char *backgrounds[MAX_BACKGROUND]=
 	TILE_BACKGROUND_NET
 	};
 
-// black, blue, green, cyan, red, magenta
-char block_attrs[MAX_TILES]={0 * 8 + 7, 1 * 8 +7, 4 * 8 + 7, 5 * 8 + 7, 2 * 8 + 7, 3 * 8 + 7};
+char block_attrs[MAX_TILES]=
+	{
+	PAPER_BLACK + INK_WHITE,
+	PAPER_BLUE + INK_WHITE,
+	PAPER_GREEN + INK_WHITE,
+	PAPER_CYAN + INK_WHITE,
+	PAPER_RED + INK_WHITE,
+	PAPER_MAGENTA + INK_WHITE
+	};
 
 // Takes a number and sticks in a string buffer.
 void my_itoa(int value, char *buffer, int buffer_len)
@@ -164,29 +140,6 @@ check_line:
 	}	
 */
 
-// Draw a 16x16 tile.	
-void draw_tile(char x, char y, unsigned char *tile)
-	{
-	unsigned char *p = zx_cyx2saddr(y, x);
-	draw_block2(p, tile);
-	p = zx_cyx2saddr(y+1, x);
-	draw_block2(p,tile + 16);
-	}
-	
-void draw_text(char x, char y, char *text)
-	{
-	unsigned char *p = zx_cyx2saddr(y,x);
-	while(*text)
-		{
-		char offset = (*text) - 0x20;
-		unsigned char *character = FONT + (offset * 8);
-
-		draw_block(p, character);
-		p++;
-		text++;
-		}
-	}
-	
 void draw_player(char x, char y, char frame)
 	{
 	// Draw the player tile.
@@ -401,35 +354,35 @@ void do_init()
 	{
 	cls(INK_BLACK + PAPER_BLACK);
 		
-	switch(input)
+	switch(menu_option)
 		{
-		case INPUT_KEYS:
+		case MENU_KEYS:
 			{
 			// Even though we're not using fire it has to be initialised otherwise
 			// the keyboard handling doesn't work.
 			k.fire = in_LookupKey('');
-			k.left  = in_LookupKey('o');
-			k.right = in_LookupKey('p');
-			k.up    = in_LookupKey('q');
-			k.down  = in_LookupKey('a');
+			k.left  = in_LookupKey(keys[2]);//'o');
+			k.right = in_LookupKey(keys[3]);//'p');
+			k.up    = in_LookupKey(keys[0]);//'q');
+			k.down  = in_LookupKey(keys[1]);//'a');
 	
 			joystick = (void *)in_JoyKeyboard;
 			}
 			break;
 			
-		case INPUT_KEMPSTON:
+		case MENU_KEMPSTON:
 			{	
 			joystick = (void *)in_JoyKempston;
 			}
 			break;
 
-		case INPUT_SINCLAIR1:
+		case MENU_SINCLAIR1:
 			{	
 			joystick = (void *)in_JoySinclair1;
 			}
 			break;
 
-		case INPUT_SINCLAIR2:
+		case MENU_SINCLAIR2:
 			{
 			joystick = (void *)in_JoySinclair2;
 			}
@@ -439,145 +392,22 @@ void do_init()
 	lives = LIVES;
 	}
 
-char check_menu_keys()
-	{
-/*		
-	char ascii;
-	ascii = in_GetKey();
-	switch(ascii)
-		{
-		case 0x30:		// 0
-			{
-			ascii = 0;
-			break;
-			}
-			
-		case 0x31:		// 1
-			{
-			ascii = INPUT_KEYS;
-			break;
-			}
-
-		case 0x32:		// 2
-			{
-			ascii = INPUT_KEMPSTON;
-			break;
-			}
-
-		case 0x33:		// 3
-			{
-			ascii = INPUT_SINCLAIR1;
-			break;
-			}
-
-		case 0x34:		// 4
-			{
-			ascii = INPUT_SINCLAIR1;
-			break;
-			}			
-		
-		default:
-			ascii = 9;
-		}
-		
-	return ascii;
-*/		
-	#asm
-	ld hl,9		// 9 means we didn't select anything.
-		
-	// Test for 0.
-	ld bc, 61438	// (6, 7, 8, 9, 0)
-	in a,(c)
-	rra
-	jr c, check
-	ld hl, 0
-	jr exit
-	
-check:		
-	ld bc, 63486
-	in a,(c)
-	rra
-		
-	jr c, check1
-	ld hl, INPUT_KEYS
-	jr exit
-check1:
-	rra
-		
-	jr c, check2
-	ld hl, INPUT_KEMPSTON
-	jr exit
-check2:
-	rra
-		
-	jr c, check3
-	ld hl, INPUT_SINCLAIR1
-	jr exit
-check3:	
-	rra
-		
-	jr c, exit
-	ld hl, INPUT_SINCLAIR2
-
-exit:
-		
-	#endasm	
-	}
-
-char do_menu()
-	{
-	char new_input, i;
-	
-	cls(INK_YELLOW + PAPER_BLACK);
-	
-	// Draw a pretty border :).
-	for(i = 0; i < 24;i=i+2)
-		{
-		draw_tile(0, i, backgrounds[2]);	
-		draw_tile(30, i, backgrounds[2]);	
-		}
-	for(i = 2; i < 30;i=i+2)
-		{
-		draw_tile(i, 0, backgrounds[2]);	
-		draw_tile(i, 22, backgrounds[2]);	
-		}
-		
-	draw_text(9,4, "^ WALKABOUT ^");
-	draw_text(9,6, "BY BOB FOSSIL");
-	draw_text(7,(MENU_OPTIONS_Y_POS - 2), "0: PLAY GAME");
-	draw_text(7, MENU_OPTIONS_Y_POS, "1: KEYBOARD (QAOP)");
-	draw_text(7, MENU_OPTIONS_Y_POS+1, "2: KEMPSTON");
-	draw_text(7, MENU_OPTIONS_Y_POS+2, "3: SINCLAIR PORT 1");
-	draw_text(7, MENU_OPTIONS_Y_POS+3, "4: SINCLAIR PORT 2");
-
-	rect(INK_WHITE + PAPER_BLACK, 7, (MENU_OPTIONS_Y_POS - 2), 18, 6);
-	rect(INK_WHITE + PAPER_BLUE, 7, (MENU_OPTIONS_Y_POS - 1) + input, 18, 1);	
-
-	while(1)
-		{
-		new_input = check_menu_keys();	
-		if(new_input!=9)
-			{
-			// We pressed a key.
-			if(!new_input)
-				return;
-			if(input!=new_input)
-				{
-				// Remove old highlight.
-				rect(INK_WHITE + PAPER_BLACK, 7, (MENU_OPTIONS_Y_POS - 1) + input,18,1);
-				// Draw new one.
-				rect(INK_WHITE + PAPER_BLUE, 7, (MENU_OPTIONS_Y_POS - 1) + new_input,18,1);
-				input = new_input;
-				}
-			}
-		}	
-	}
-	
 // IM2 function.	
 M_BEGIN_ISR(isr)
 	{
 	switch(state)
 		{
+		case STATE_MENU:
+			{
+			interrupt_timer++;
+			if(interrupt_timer==1)
+				{
+				update_menu_border();
+				interrupt_timer = 0;
+				}
+			}
+			break;
+			
 		case STATE_PLAYING:
 			{
 			interrupt_timer++;
@@ -665,6 +495,9 @@ void do_code()
 	
 	for(;len <=LEVEL_CODE_SIZE; len++)
 		code[len] = 0x0;
+
+	// Clear any proceeding key press.
+	while(in_GetKey());
 		
 	len = 0;
 		
@@ -728,7 +561,7 @@ main()
 	unsigned char direction;
 				
 	border(0);
-	input = INPUT_KEYS;
+	menu_option = MENU_KEYS;
 	in_GetKeyReset();
 		
 	set_state(STATE_MENU);
@@ -737,8 +570,15 @@ main()
 	interrupts(1);
 
 	while(1)
-		{		
-		do_menu();
+		{			
+		while(state==STATE_MENU)
+			{
+			do_menu();
+			if(state==STATE_REDEFINE)
+				do_redefine_keys();
+			else
+				break;
+			}
 			
 		do_code();
 						

@@ -1,6 +1,9 @@
 
 // General graphic routines / effects.
 
+#include <spectrum.h>
+
+#include "assets.h"
 #include "graphics.h"
 
 // Calculate an attribute value by adding together:
@@ -176,4 +179,38 @@ copy2:
 
 	#endasm
 	
+	}
+
+// Draw a 16x16 tile.	
+void draw_tile(char x, char y, unsigned char *tile)
+	{
+	unsigned char *p = zx_cyx2saddr(y, x);
+	draw_block2(p, tile);
+	p = zx_cyx2saddr(y+1, x);
+	draw_block2(p,tile + 16);
+	}
+	
+void draw_text(char x, char y, char *text)
+	{
+	unsigned char *p = zx_cyx2saddr(y,x), *character;
+	unsigned char v;
+	while(*text)
+		{
+		v = *text;
+/*			
+		if(v > 128)
+			{
+			v = v - 0x80;
+			character = (unsigned char *)(FONT + (v * 8));
+			draw_block(p, character);
+			break;
+			}
+*/
+		v = v - 0x20;
+		character = (unsigned char *)(FONT + (v * 8));
+
+		draw_block(p, character);
+		p++;
+		text++;
+		}
 	}
