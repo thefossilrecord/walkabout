@@ -52,6 +52,10 @@ MEMORY MAP:
 50176 - 50432 : IM2 Table
 50433	      : Previous I value
 50629 - 50631 : Interrupt jump instruction
+
+60150 - 60157 : Scrolling message character
+60160 - 60351 : Scrolling message buffer (SCROLL_WIDTH * SCROLL_HEIGHT 8)
+
 */
 
 
