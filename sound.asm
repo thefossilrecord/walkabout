@@ -16,23 +16,39 @@
 ;* 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
 ;*
 ;*
-;******************************************************************************
+;******************************************************************************/
 
-	SECTION assets
-	ORG 25000
+; Adapted from article by Jonathan Cauldwell
+; https://chuntey.wordpress.com/2013/02/28/how-to-write-zx-spectrum-games-chapter-3/
 
-	; 25000 - 25767 : Font
+SECTION code_user
+PUBLIC _sound_effect
 
-	include "font.asm"
+_sound_effect:
 
-	; 25768 - 25799 : Player Sprite
-	; 25800 - 25831 : Player Sprite Frame 2
-	; 25832 - 25863 : Player Sprite Rotated 90 degress
-	; 25864 - 25895 : Player Sprite Rotated 180 degress
-	; 25896 - 25927 : Player Sprite Rotated 270 degress
-	; 25928 - 25959 : Level Tile
-	; 25960 - 26279 : Background Tiles 1 - 10
-	
-	include "tiles.asm"
+	; void sound_effect(int pitch, char bend)
 
+	ld hl, 2
+	add hl, sp		; skip over return address on stack
+
+	ld b, (hl)		; b = bend
+	inc hl
+	inc hl
+	ld e, (hl)		; load pitch into de
+	inc hl
+	ld d, (hl)
+		
+	ex de, hl		; swap pitch into hl
+		
+loop:
+	push bc
+	push hl			; store pitch.
+	ld de, 1			; very short duration.
+	call 949		; ROM beeper routine.
+	pop hl			; restore pitch.
+	inc hl			; pitch going up.
+	pop bc
+	djnz loop		; repeat.
+
+	ret
 

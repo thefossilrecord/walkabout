@@ -31,4 +31,7 @@
 
 void set_state(char new_state);
 
+// asm
+extern char break_pressed();
+
 #endif

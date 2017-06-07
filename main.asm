@@ -16,23 +16,26 @@
 ;* 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
 ;*
 ;*
-;******************************************************************************
+;******************************************************************************/
 
-	SECTION assets
-	ORG 25000
+SECTION code_user
+PUBLIC _break_pressed
 
-	; 25000 - 25767 : Font
+_break_pressed:
 
-	include "font.asm"
+	halt		; Add a pause here to slow the keyboard scanning down.
 
-	; 25768 - 25799 : Player Sprite
-	; 25800 - 25831 : Player Sprite Frame 2
-	; 25832 - 25863 : Player Sprite Rotated 90 degress
-	; 25864 - 25895 : Player Sprite Rotated 180 degress
-	; 25896 - 25927 : Player Sprite Rotated 270 degress
-	; 25928 - 25959 : Level Tile
-	; 25960 - 26279 : Background Tiles 1 - 10
+	ld hl, 0
+	ld a, $7f 	; Form the port address +7FFE and read in a byte.
+	in a,($fe)
+	rra 		; Examine only bit 0 by shifting it into the carry position.
+	ret c		;jr c, done 	; Return if the BREAK key is not being pressed.
 	
-	include "tiles.asm"
+	ld a,$fe 	; Form the port address +FEFE and read in a byte.
+	in a,($fe)
+	rra	 	; Again examine bit 0.
+	ret c		;jr c, done
+	
+	ld hl, 1	; BREAK is pressed
 
-
+	ret

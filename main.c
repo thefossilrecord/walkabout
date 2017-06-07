@@ -217,11 +217,11 @@ void draw_death()
 		frame++;
 		if(frame > 4)
 			frame = 0;
-		#asm
+		__asm
 		halt
 		halt
 		halt
-		#endasm
+		__endasm
 		}
 	}
 	
@@ -446,7 +446,7 @@ void interrupts(char install)
 		p = INTERRUPT_JUMP + 1;
 		// Copy interrupt function address to $c5c5 + 1.
 		*p = isr;
-		#asm
+		__asm
 		di
 			
 		// Create our 256 interrupt table.
@@ -470,11 +470,11 @@ void interrupts(char install)
 		ld i, a
 		im 2
 		ei
-		#endasm
+		__endasm
 		}
 	else
 		{
-		#asm		
+		__asm		
 		di
 		//  Restore old I.
 		ld a,(INTERRUPT_STORE)
@@ -482,7 +482,7 @@ void interrupts(char install)
 		im 1
 		ei
 			
-		#endasm
+		__endasm
 		}
 	}
 
@@ -598,6 +598,12 @@ main()
 				
 			while(state==STATE_PLAYING)
 				{
+				if(break_pressed())
+					{
+					set_state(STATE_GAMEOVER);
+					lives = 0;
+					}
+					
 				if(!wait)
 					{
 					direction = (joystick)(&k);
@@ -625,9 +631,6 @@ main()
 				else
 					{
 					wait--;
-#asm
-					halt
-#endasm		
 					}
 				}
 			

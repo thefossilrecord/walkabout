@@ -31,11 +31,21 @@
 #define MENU_REDEFINE		5
 #define MENU_NO_SELECTION	9
 
+#define SCROLL_BUFFER 60160
+#define SCROLL_CHAR 60150
+#define SCROLL_WIDTH 24
+#define SCROLL_HEIGHT 8
+
 extern char keys[];
 extern char menu_option;
 
 void do_menu();
 void do_redefine_keys();
 void update_menu_border();
+
+// asm
+extern void clear_scroll_buffer();
+extern char check_menu_keys();
+extern char do_scroll();
 
 #endif
