@@ -28,22 +28,28 @@ _sound_effect:
 
 	; void sound_effect(int pitch, char bend)
 
-	ld hl, 2
-	add hl, sp		; skip over return address on stack
+IFDEF __SCCZ80
 
-	ld b, (hl)		; b = bend
-	inc hl
-	inc hl
-	ld e, (hl)		; load pitch into de
-	inc hl
-	ld d, (hl)
-		
-	ex de, hl		; swap pitch into hl
-		
+	pop hl			; return address
+	pop bc			; bc = bend
+	ex (sp),hl		; hl = pitch, return address back on stack
+
+ENDIF
+
+IFDEF __SDCC
+
+	pop af       		; return address
+	pop hl       		; hl = pitch
+	pop bc       		; bc = bend
+	push af      		; return address back on stack
+
+ENDIF
+
+	ld b,c			; popped bend into c, so put it into b for the djnz
 loop:
 	push bc
 	push hl			; store pitch.
-	ld de, 1			; very short duration.
+	ld de, 1		; very short duration.
 	call 949		; ROM beeper routine.
 	pop hl			; restore pitch.
 	inc hl			; pitch going up.

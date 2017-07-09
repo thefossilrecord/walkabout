@@ -22,6 +22,8 @@
 #define MENU_H
 
 #define MENU_OPTIONS_Y_POS	12
+#define MENU_CODE_X_POS		11
+#define MENU_CODE_Y_POS		12
 
 #define MENU_START		0
 #define MENU_KEYS		1
@@ -31,8 +33,8 @@
 #define MENU_REDEFINE		5
 #define MENU_NO_SELECTION	9
 
-#define SCROLL_BUFFER 60160
-#define SCROLL_CHAR 60150
+#define SCROLL_BUFFER 60672
+#define SCROLL_CHAR 60662
 #define SCROLL_WIDTH 24
 #define SCROLL_HEIGHT 8
 
@@ -41,6 +43,7 @@ extern char menu_option;
 
 void do_menu();
 void do_redefine_keys();
+unsigned char do_code();
 void update_menu_border();
 
 // asm

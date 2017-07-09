@@ -14,6 +14,7 @@ Additional credits:
 * http://listofrandomwords.com - for the level codes.
 * Alvin Albrecht for guidance on z88dk usage.
 * https://skoolkid.github.io/rom/index.html - Skoolkit's Complete Spectrum ROM Disassembly
+* Juan J. Ramirez for his Black Star game code which was helpful porting to the new library in z88dk and adding multi compiler support in my assembly code. 
 
 To build from source you'll need:
 
@@ -27,3 +28,5 @@ To build from source you'll need:
 to something like
 
 `copy /b basic.tap+assets.tap+code.tap walkabout.tap`
+
+You should now be able to compile it with either sccz80 or zsdcc.

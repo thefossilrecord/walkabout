@@ -19,23 +19,23 @@
  ******************************************************************************/
 
 #include <input.h>
-#include <spectrum.h>
 
 #include "assets.h"
 #include "graphics.h"
+#include "levels.h"
 #include "main.h"
 #include "menu.h"
 #include "sound.h"
 
 #define KEYS_LENGTH 	4
 
-char keys[]="qaop";
-char menu_option;
-char border_attr, border_x, border_y;
+char keys[]="qaop ";
+unsigned char menu_option;
+unsigned char border_attr, border_x, border_y;
 
 char scroll_text[]="WALKABOUT - CODE, GFX AND PLIP PLOP MUSIC BY BOB FOSSIL. LEVELS BY HONX. MADE WITH Z88DK.        ";
 char *scroll_char;
-char scroll_rem = 0;
+unsigned char scroll_rem = 0;
 
 void update_menu_border()
 	{
@@ -58,7 +58,7 @@ void update_menu_border()
 
 void do_redefine_keys()
 	{		
-	char i = 0, ii, ascii[2], ok, ty = 10;
+	unsigned char i = 0, ii, ascii[2], ok, ty = 10;
 	char *descs[4] = {"UP", "DOWN", "LEFT", "RIGHT"};
 	ascii[1] = 0;
 	// Clear existing keys
@@ -71,7 +71,7 @@ void do_redefine_keys()
 	rect(INK_YELLOW + PAPER_BLACK, 20, 10, 1, 8);
 
 	// Clear any proceeding key press.
-	while(in_GetKey());
+	in_wait_nokey();
 
 	while(i < KEYS_LENGTH)
 		{
@@ -83,10 +83,10 @@ void do_redefine_keys()
 			// Get a key press.
 			ascii[0] = 0;
 			ii = 0;
-			while(!ascii[0])
-				{
-				ascii[0] = in_GetKey();
-				}
+
+			in_wait_key();
+			ascii[0] = in_inkey();
+			in_wait_nokey();
 				
 //			if(ascii[0] > 0x60 && ascii[0] < 0x7b)
 //				// Shift down to UPPER case.
@@ -116,10 +116,82 @@ void do_redefine_keys()
 
 	set_state(STATE_MENU);
 	}
+	
+unsigned char do_code()
+	{
+	unsigned char len = 0, ascii;
+	char code[LEVEL_CODE_SIZE];
+
+	cls(INK_WHITE + PAPER_BLACK);
+	
+	for(; len <=LEVEL_CODE_SIZE; len++)
+		code[len] = 0x0;
+
+	// Clear any proceeding key press.
+	in_wait_nokey();
+		
+	len = 0;
+		
+	set_state(STATE_CODE);
+		
+	draw_text(7, MENU_CODE_Y_POS - 2,"ENTER LEVEL CODE:");
+	rect(INK_WHITE + PAPER_BLUE, MENU_CODE_X_POS, MENU_CODE_Y_POS, LEVEL_CODE_SIZE - 1, 1);
+		
+	while(1)
+		{
+		in_wait_key();
+		ascii = in_inkey();
+		in_wait_nokey();
+
+		if(ascii)
+			{
+			// In lower case a-z range?
+			if(ascii > 0x60 && ascii < 0x7b)
+				// Shift down to UPPER case.
+				ascii = ascii - 0x20;
+			
+			// In UPPER case A-Z range?
+			if(ascii > 0x40 && ascii < 0x5b && len < LEVEL_CODE_SIZE - 1) 
+				{
+				// Add character to code.
+				if(len < LEVEL_CODE_SIZE - 1)
+					{
+					code[len]= ascii;
+					len++;
+					
+					draw_text(MENU_CODE_X_POS, MENU_CODE_Y_POS, code);
+					}
+				}
+				
+			if(ascii==0xc && len >=0)
+				{
+				// Pressed DELETE.
+				if(len)
+					len--;
+					
+				code[len]= 0;
+				draw_text(MENU_CODE_X_POS + len, MENU_CODE_Y_POS, " ");
+				}
+				
+			if(ascii==0xd)
+				// Pressed ENTER.
+				break;
+			
+			// Typing echo noise (also adds a delay which makes the typing
+			// less twitchy.
+			sound_effect(250,30);
+			}
+			
+			
+		}
+		
+	// Try and match our code.
+	return find_level_from_code(code);
+	}	
 
 void do_menu()
 	{
-	char new_menu_option, i;
+	unsigned char new_menu_option, i;
 	unsigned char *character, *p;
 
 	// Reset scroller.
@@ -146,6 +218,9 @@ void do_menu()
 		draw_tile(i, 22, backgrounds[2]);	
 		}
 		
+	rect(INK_RED + PAPER_BLACK, 9, 4, 13, 1);
+	rect(INK_YELLOW + PAPER_BLACK, 11, 4, 9, 1);
+
 	draw_text(9,4, "^ WALKABOUT ^");
 	draw_text(9,6, "BY BOB FOSSIL");
 	draw_text(7,(MENU_OPTIONS_Y_POS - 2), "0: PLAY GAME");
@@ -161,7 +236,6 @@ void do_menu()
 
 	while(1)
 		{
-		//do_scroll();		
 		if(!scroll_rem)
 			{
 			// Load character into buffer.

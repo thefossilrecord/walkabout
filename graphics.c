@@ -19,9 +19,6 @@
  ******************************************************************************/
 
 // General graphic routines / effects.
-
-#include <spectrum.h>
-
 #include "assets.h"
 #include "graphics.h"
 
@@ -33,10 +30,10 @@
 // INK
 
 // Draws an attribute rectangle at x,y - w by h.	
-void rect(char attr, char x, char y, char w, char h)
+void rect(unsigned char attr, unsigned char x, unsigned char y, unsigned char w, unsigned char h)
 	{
 	unsigned char *p;
-	char i1 = 1, i2;
+	unsigned char i1 = 1, i2;
 	for(; i1 <= h; i1++)
 		{
 		p = (unsigned char *)(SCREEN_ATTRIBUTES + (y * ATRR_LINE_WIDTH) + x);
@@ -53,7 +50,7 @@ void rect(char attr, char x, char y, char w, char h)
 	}
 
 // Draw a 16x16 tile.	
-void draw_tile(char x, char y, unsigned char *tile)
+void draw_tile(unsigned char x, unsigned char y, unsigned char *tile)
 	{
 	unsigned char *p = zx_cyx2saddr(y, x);
 	draw_block2(p, tile);
@@ -61,7 +58,7 @@ void draw_tile(char x, char y, unsigned char *tile)
 	draw_block2(p,tile + 16);
 	}
 	
-void draw_text(char x, char y, char *text)
+void draw_text(unsigned char x, unsigned char y, char *text)
 	{
 	unsigned char *p = zx_cyx2saddr(y,x), *character;
 	unsigned char v;

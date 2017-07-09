@@ -100,18 +100,23 @@ _draw_block:
 ;		address = address + 256;
 ;		}
 
-	ld hl, 2
-	add hl, sp		; skip over return address on stack
+IFDEF __SCCZ80
 
-	ld e, (hl)		; put tile into de
-	inc hl			 
-	ld d, (hl)
-	inc hl
-	ld c, (hl)		; put address into bc
-	inc hl
-	ld b, (hl)
-	ld h, b			; copy address into hl
-	ld l, c
+	pop hl			; return address
+	pop de			; de = tile
+	ex (sp),hl		; hl = address, return address back on stack
+
+ENDIF
+
+IFDEF __SDCC
+
+	pop af       		; return address
+	pop hl       		; hl = address
+	pop de       		; de = tile
+	push af      		; return address back on stack
+
+ENDIF
+
 	ld b, 8			; loop 8 times
 		
 copy:
@@ -138,19 +143,24 @@ _draw_block2:
 ;		address = address + 255;
 ;		tile++;
 ;		}		
-		
-	ld hl,2
-	add hl,sp		; skip over return address on stack
 
-	ld e,(hl)		; put tile into de
-	inc hl			 
-	ld d,(hl)
-	inc hl
-	ld c,(hl)		; put address into bc
-	inc hl
-	ld b,(hl)
-	ld h,b			; copy address into hl
-	ld l,c
+IFDEF __SCCZ80
+
+	pop hl			; return address
+	pop de			; de = tile
+	ex (sp),hl		; hl = address, return address back on stack
+
+ENDIF
+
+IFDEF __SDCC
+
+	pop af			; return address
+	pop hl			; hl = address
+	pop de			; de = tile
+	push af			; return address back on stack
+
+ENDIF
+
 	ld b,8			; loop 8 times
 		
 copy2:

@@ -19,7 +19,6 @@
  ******************************************************************************/
 
 #include <input.h>
-#include <spectrum.h>
 #include <im2.h>
 
 #include "assets.h"
@@ -48,34 +47,45 @@ MEMORY MAP:
 25928 - 25959 : Level Tile
 25960 - 26279 : Background Tiles 1 - 10
 
-32768 -       : Code
-50176 - 50432 : IM2 Table
-50433	      : Previous I value
-50629 - 50631 : Interrupt jump instruction
+      - 29952 : SP ($7500)
+32768 - 33023 : IM2 table ($8000)
+33026         : Previous I value
+33153 - 33155 : Interrupt jump instruction ($8181)
+33200 -       : Code
 
-60150 - 60157 : Scrolling message character
-60160 - 60351 : Scrolling message buffer (SCROLL_WIDTH * SCROLL_HEIGHT 8)
+49152 - 50759 : AY Playback
+51300 - 60481 : AY Music
+
+60662 - 60669 : Scrolling message character
+60672 - 61351 : Scrolling message buffer (SCROLL_WIDTH * SCROLL_HEIGHT 8)
 
 */
 
+//#define AY_MUSIC
 
-#define INTERRUPT_TABLE		50176	// $c400
-#define INTERRUPT_JUMP		50629	// $c5c5
-#define INTERRUPT_STORE		50433
+#ifdef AY_MUSIC	
+
+#define MUSIC_PLAYER	49152
+#define MUSIC_INIT	MUSIC_PLAYER + 53
+#define MUSIC_PLAY	MUSIC_PLAYER + 1199
+#define MUSIC_TUNE 	51300
+
+#endif
+
+#define INTERRUPT_TABLE		32768	// $8000
+#define INTERRUPT_JUMP		33153	// $8181
+#define INTERRUPT_STORE		33026
+#define INTERRUPT_VALUE		$80
+#define INTERRUPT_TABLE_VALUE	$81
 
 #define X_OFFSET	4
 #define KEYBOARD_WAIT	10
 #define LIVES		3
 #define START_LEVEL	1
 
-#define CODE_X_POS	11
-#define CODE_Y_POS	12
-
-
-
-struct in_UDK k;
+udk_t k;
 void *joystick;
-char px, py, state, lives, level, remaining, backg, backg_attr;
+unsigned char px, py, state, lives, level, remaining, backg, backg_attr;
 char level_buffer[LEVEL_BUFFER_SIZE];
 char game_over[]="GAME OVER!";
 char rem_blocks[4]="000";
@@ -84,11 +94,6 @@ char level_txt[4]="LVL";
 char level_count[4]="000";
 char lookup[]= "0123456789";
 int interrupt_timer = 0;
-
-uchar in_KeyDebounce = 1;	// no debouncing
-uchar in_KeyStartRepeat = 0;	// wait 20/50s before key starts repeating
-uchar in_KeyRepeatPeriod = 0;	// 10;  // repeat every 10/50s
-uint in_KbdState;               // reserved
 
 unsigned char *backgrounds[MAX_BACKGROUND]=
 	{
@@ -104,7 +109,7 @@ unsigned char *backgrounds[MAX_BACKGROUND]=
 	TILE_BACKGROUND_NET
 	};
 
-char block_attrs[MAX_TILES]=
+unsigned char block_attrs[MAX_TILES]=
 	{
 	PAPER_BLACK + INK_WHITE,
 	PAPER_BLUE + INK_WHITE,
@@ -117,7 +122,7 @@ char block_attrs[MAX_TILES]=
 // Takes a number and sticks in a string buffer.
 void my_itoa(int value, char *buffer, int buffer_len)
 	{
-	char i;
+	unsigned char i;
 
 	// Fill string with leading zeros.
 	for(i = 0; i < buffer_len; i++)
@@ -138,19 +143,19 @@ void my_itoa(int value, char *buffer, int buffer_len)
 		}
 	}
 
-void draw_player(char x, char y, char frame)
+void draw_player(unsigned char x, unsigned char y, unsigned char frame)
 	{
 	// Draw the player tile.
 	unsigned char *p = TILE_PLAYER + (frame * TILE_BYTES);
 	draw_tile((x * 2) + X_OFFSET, (y * 2), p);
 	}
 	
-void draw_level_tile(char x, char y, char b)
+void draw_level_tile(unsigned char x, unsigned char y, unsigned char b)
 	{
 	unsigned char *tile = TILE_TILE;
 	unsigned char *p = SCREEN_ATTRIBUTES + ((y * 2) * 32) + (x * 2) + X_OFFSET;
 
-	char attr = block_attrs[b - 48]; // Subtract ASCII 0 from block.
+	unsigned char attr = block_attrs[b - 48]; // Subtract ASCII 0 from block.
 
 	if(attr==7)
 		{
@@ -173,7 +178,7 @@ void draw_level_tile(char x, char y, char b)
 	
 void draw_level()
 	{		
-	int y = 0, x;
+	unsigned char y = 0, x;
 		
 	char *block = level_buffer;
 
@@ -207,7 +212,7 @@ void draw_level()
 void draw_death()
 	{
 	// Start at frame 2.
-	char frame = 2, i = 0;
+	unsigned char frame = 2, i = 0;
 	// Set red on black colours at player location.	
 	rect(INK_RED + PAPER_BLACK, (px * 2) + X_OFFSET, py * 2, 2, 2);
 	// Spin the character around.			
@@ -227,8 +232,8 @@ void draw_death()
 	
 void move(char x, char y)
 	{
-	char new_x, new_y, prev;
-	int offset;
+	char new_x, new_y;
+	unsigned char offset, prev;
 		
 	new_x = px + x;
 	new_y = py + y;
@@ -299,18 +304,18 @@ void move(char x, char y)
 		sound_effect(200,20);
 	}
 	
-void set_state(char new_state)
+void set_state(unsigned char new_state)
 	{
 	state = new_state;
 	// Reset interrupt timer.
 	interrupt_timer = 0;
 	}
 	
-void init_level(int level)
+void init_level(unsigned char level)
 	{
-	int copy = 0;
+	unsigned char copy = 0;
 	struct level_data *current_level;
-	char *data;
+	unsigned char *data;
 
 	if(level > MAX_LEVELS)
 		{
@@ -360,31 +365,31 @@ void do_init()
 			{
 			// Even though we're not using fire it has to be initialised otherwise
 			// the keyboard handling doesn't work.
-			k.fire = in_LookupKey('');
-			k.left  = in_LookupKey(keys[2]);	// defaults to 'o';
-			k.right = in_LookupKey(keys[3]);	// defaults to 'p';
-			k.up    = in_LookupKey(keys[0]);	// defaults to 'q';
-			k.down  = in_LookupKey(keys[1]);	// defaults to 'a';
+			k.left  = in_key_scancode(keys[2]);	// defaults to 'o';
+			k.right = in_key_scancode(keys[3]);	// defaults to 'p';
+			k.up    = in_key_scancode(keys[0]);	// defaults to 'q';
+			k.down  = in_key_scancode(keys[1]);	// defaults to 'a';
+			k.fire = in_key_scancode(keys[4]);	// defaults to ' ';
 	
-			joystick = (void *)in_JoyKeyboard;
+			joystick = (void *)in_stick_keyboard;
 			}
 			break;
 			
 		case MENU_KEMPSTON:
 			{	
-			joystick = (void *)in_JoyKempston;
+			joystick = (void *)in_stick_kempston;
 			}
 			break;
 
 		case MENU_SINCLAIR1:
 			{	
-			joystick = (void *)in_JoySinclair1;
+			joystick = (void *)in_stick_sinclair1;
 			}
 			break;
 
 		case MENU_SINCLAIR2:
 			{
-			joystick = (void *)in_JoySinclair2;
+			joystick = (void *)in_stick_sinclair2;
 			}
 			break;
 		}
@@ -393,7 +398,7 @@ void do_init()
 	}
 
 // IM2 function.	
-M_BEGIN_ISR(isr)
+IM2_DEFINE_ISR(isr)
 	{
 	switch(state)
 		{
@@ -432,9 +437,15 @@ M_BEGIN_ISR(isr)
 			}
 			break;
 		}
+
+#ifdef AY_MUSIC		
+	#asm
+	
+	call MUSIC_PLAY
 		
-	}
-M_END_ISR	
+	#endasm
+#endif		
+	}	
 	
 void interrupts(char install)
 	{
@@ -444,20 +455,20 @@ void interrupts(char install)
 		{
 		// Install interrupt handler.
 		p = INTERRUPT_JUMP + 1;
-		// Copy interrupt function address to $c5c5 + 1.
+		// Copy interrupt function address to INTERRUPT_JUMP + 1.
 		*p = isr;
 		__asm
 		di
 			
 		// Create our 256 interrupt table.
 		ld hl, INTERRUPT_TABLE
-		ld (hl), $c5
+		ld (hl), INTERRUPT_TABLE_VALUE
 		ld de, INTERRUPT_TABLE + 1
 		ld bc, 257
 		ldir		
 		
-		// Put a jp instruction to our interrupt function at $c5c5
-		ld hl,$c5c5
+		// Put a jp instruction to our interrupt function at INTERRUPT_JUMP
+		ld hl, INTERRUPT_JUMP
 		ld a, 195
 		ld (hl),a
 
@@ -466,7 +477,7 @@ void interrupts(char install)
 		ld (INTERRUPT_STORE),a
 
 		// Switch to IM2.
-		ld a,$c4
+		ld a, INTERRUPT_VALUE
 		ld i, a
 		im 2
 		ei
@@ -485,89 +496,26 @@ void interrupts(char install)
 		__endasm
 		}
 	}
-
-void do_code()
-	{
-	int len = 0, ascii;
-	char code[LEVEL_CODE_SIZE];
-
-	cls(INK_WHITE + PAPER_BLACK);
-	
-	for(;len <=LEVEL_CODE_SIZE; len++)
-		code[len] = 0x0;
-
-	// Clear any proceeding key press.
-	while(in_GetKey());
-		
-	len = 0;
-		
-	set_state(STATE_CODE);
-		
-	draw_text(7, CODE_Y_POS - 2,"ENTER LEVEL CODE:");
-	rect(INK_WHITE + PAPER_BLUE, CODE_X_POS, CODE_Y_POS, LEVEL_CODE_SIZE - 1, 1);
-		
-	while(1)
-		{
-		ascii = in_GetKey();
-		if(ascii)
-			{
-			// In lower case a-z range?
-			if(ascii > 0x60 && ascii < 0x7b)
-				// Shift down to UPPER case.
-				ascii = ascii - 0x20;
-			
-			// In UPPER case A-Z range?
-			if(ascii > 0x40 && ascii < 0x5b && len < LEVEL_CODE_SIZE - 1) 
-				{
-				// Add character to code.
-				if(len < LEVEL_CODE_SIZE - 1)
-					{
-					code[len]= ascii;
-					len++;
-					
-					draw_text(CODE_X_POS, CODE_Y_POS, code);
-					}
-				}
-				
-			if(ascii==0xc && len >=0)
-				{
-				// Pressed DELETE.
-				if(len)
-					len--;
-					
-				code[len]= 0;
-				draw_text(CODE_X_POS + len, CODE_Y_POS, " ");
-				}
-				
-			if(ascii==0xd)
-				// Pressed ENTER.
-				break;
-			
-			// Typing echo noise (also adds a delay which makes the typing
-			// less twitchy.
-			sound_effect(250,30);
-			}
-			
-			
-		}
-		
-	// Try and match our code.
-	level = find_level_from_code(code);
-	}
 	
 main()
 	{
-	char wait = 0, i;
-	unsigned char direction;
+	unsigned char wait = 0, i, direction;
 				
 	border(0);
 	// Set intial menu option to keyboard.
 	menu_option = MENU_KEYS;
-	// Initialise keyboard handling.
-	in_GetKeyReset();
 		
 	set_state(STATE_MENU);
-	
+
+#ifdef AY_MUSIC
+	#asm
+
+	ld hl, MUSIC_TUNE
+	call MUSIC_INIT
+		
+	#endasm
+#endif
+		
 	// Install IM2 handler.
 	interrupts(1);
 
@@ -582,7 +530,7 @@ main()
 				break;
 			}
 			
-		do_code();
+		level = do_code();
 						
 		do_init();
 
@@ -607,22 +555,22 @@ main()
 				if(!wait)
 					{
 					direction = (joystick)(&k);
-					if(direction==in_UP)
+					if(direction==IN_STICK_UP)
 						{
 						move(0, -1);
 						wait = KEYBOARD_WAIT;
 						}
-					else if(direction==in_DOWN)
+					else if(direction==IN_STICK_DOWN)
 						{
 						move(0, 1);
 						wait = KEYBOARD_WAIT;
 						}				
-					else if(direction==in_LEFT)
+					else if(direction==IN_STICK_LEFT)
 						{
 						move(-1, 0);
 						wait = KEYBOARD_WAIT;
 						}
-					else if(direction==in_RIGHT)
+					else if(direction==IN_STICK_RIGHT)
 						{
 						move(1, 0);
 						wait = KEYBOARD_WAIT;
@@ -662,8 +610,9 @@ main()
 						draw_text(19, 12, get_level_code(level));
 							
 						// Wait for a keypress.
-						while(!in_GetKey());
-						}
+						in_wait_key();
+						while(!in_inkey());
+						in_wait_nokey();									}
 						
 					level++;
 

@@ -21,20 +21,22 @@
 #ifndef GFX_H
 #define GFX_H
 
+#include <arch/zx.h>
+
 #define SCREEN_ATTRIBUTES 	22528
 #define ATRR_LINE_WIDTH		32
 
 #define BORDCR			23624
 
-void rect(char attr, char x, char y, char w, char h);
-void draw_tile(char x, char y, unsigned char *tile);
-void draw_text(char x, char y, char *text);
+void rect(unsigned char attr, unsigned char x, unsigned char y, unsigned char w, unsigned char h);
+void draw_tile(unsigned char x, unsigned char y, unsigned char *tile);
+void draw_text(unsigned char x, unsigned char y, char *text);
 
 // asm
 extern void cls(int attr) __z88dk_fastcall;
 extern void border(char c) __z88dk_fastcall;
 extern void fade();
-extern void draw_block(unsigned char *address, unsigned char *tile);
-extern void draw_block2(unsigned char *address, unsigned char *tile);
+extern void draw_block(unsigned char *address, unsigned char *tile) __z88dk_callee;
+extern void draw_block2(unsigned char *address, unsigned char *tile) __z88dk_callee;
 
 #endif

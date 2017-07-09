@@ -29,7 +29,7 @@
 #define STATE_GAMEOVER	6
 #define STATE_REDEFINE	7
 
-void set_state(char new_state);
+void set_state(unsigned char new_state);
 
 // asm
 extern char break_pressed();
