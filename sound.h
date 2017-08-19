@@ -21,6 +21,6 @@
 #ifndef SOUND_H
 #define SOUND_H
 
-extern void sound_effect(int pitch, char bend) __z88dk_callee;
+extern void sound_effect(int pitch, int bend) __z88dk_callee;
 
 #endif

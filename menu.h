@@ -38,8 +38,8 @@
 #define SCROLL_WIDTH 24
 #define SCROLL_HEIGHT 8
 
-extern char keys[];
-extern char menu_option;
+extern unsigned int keys[];
+extern unsigned char menu_option;
 
 void do_menu();
 void do_redefine_keys();

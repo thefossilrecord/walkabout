@@ -43,6 +43,7 @@ IFDEF __SDCC
 	pop bc       		; bc = bend
 	push af      		; return address back on stack
 
+	push ix			; store ix as call to ROM beeper overwrites
 ENDIF
 
 	ld b,c			; popped bend into c, so put it into b for the djnz
@@ -55,6 +56,12 @@ loop:
 	inc hl			; pitch going up.
 	pop bc
 	djnz loop		; repeat.
+
+IFDEF __SDCC
+
+	pop ix			; restore ix for SDCC
+
+ENDIF
 
 	ret
 

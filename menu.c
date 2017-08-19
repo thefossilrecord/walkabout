@@ -27,9 +27,10 @@
 #include "menu.h"
 #include "sound.h"
 
-#define KEYS_LENGTH 	4
+#define KEYS_LENGTH 	5
+#define KEYS_IN_USE	4
 
-char keys[]="qaop ";
+unsigned int keys[KEYS_LENGTH] = {'q', 'a', 'o', 'p', ' '};
 unsigned char menu_option;
 unsigned char border_attr, border_x, border_y;
 
@@ -58,11 +59,21 @@ void update_menu_border()
 
 void do_redefine_keys()
 	{		
-	unsigned char i = 0, ii, ascii[2], ok, ty = 10;
-	char *descs[4] = {"UP", "DOWN", "LEFT", "RIGHT"};
-	ascii[1] = 0;
+	unsigned char i = 0, ii = 0, ok = 0, ty = 10;
+	char key[2];
+	unsigned int ascii = 0;
+	const char *descs[4] =
+		{
+		"UP",
+		"DOWN",
+		"LEFT",
+		"RIGHT"
+		};
+
+	key[1] = 0;
+		
 	// Clear existing keys
-	for(i = 0; i < KEYS_LENGTH; i++)
+	for(i = 0; i < KEYS_IN_USE; i++)
 		keys[i] = 0;
 	i = 0;
 	cls(INK_WHITE + PAPER_BLACK);
@@ -73,19 +84,19 @@ void do_redefine_keys()
 	// Clear any proceeding key press.
 	in_wait_nokey();
 
-	while(i < KEYS_LENGTH)
+	while(i < KEYS_IN_USE)
 		{
-		draw_text(10, ty, descs[i]);
+		draw_text(10, ty, (char *)descs[i]);
 
 		ok = 0;
 		while(!ok)
 			{
 			// Get a key press.
-			ascii[0] = 0;
+			ascii = 0;
 			ii = 0;
 
 			in_wait_key();
-			ascii[0] = in_inkey();
+			ascii = in_inkey();
 			in_wait_nokey();
 				
 //			if(ascii[0] > 0x60 && ascii[0] < 0x7b)
@@ -93,23 +104,24 @@ void do_redefine_keys()
 //				ascii[0] = ascii[0] - 0x20;	
 
 			// Check it's not already been added.
-			while(ii < KEYS_LENGTH)
+			while(ii < KEYS_IN_USE)
 				{
-				if(keys[ii]==ascii[0])
+				if(keys[ii]==ascii)
 					break;
 				ii++;
 				}
-				
-			if(ii==KEYS_LENGTH)
+								
+			if(ii==KEYS_IN_USE)
 				{
-				draw_text(20, ty, &ascii[0]);
+				key[0] = (char)ascii;
+				draw_text(20, ty, (char *)&key);
 				ok = 1;
 				
 				sound_effect(250,30);
 				}
 			}
 			
-		keys[i] = ascii[0];
+		keys[i] = ascii;
 		i++;
 		ty = ty + 2;
 		}
@@ -119,24 +131,20 @@ void do_redefine_keys()
 	
 unsigned char do_code()
 	{
-	unsigned char len = 0, ascii;
-	char code[LEVEL_CODE_SIZE];
+	unsigned char len = 0;
+	int ascii = 0;
+	unsigned char code[] = "         ";
 
 	cls(INK_WHITE + PAPER_BLACK);
 	
-	for(; len <=LEVEL_CODE_SIZE; len++)
-		code[len] = 0x0;
-
 	// Clear any proceeding key press.
 	in_wait_nokey();
-		
-	len = 0;
-		
 	set_state(STATE_CODE);
 		
 	draw_text(7, MENU_CODE_Y_POS - 2,"ENTER LEVEL CODE:");
 	rect(INK_WHITE + PAPER_BLUE, MENU_CODE_X_POS, MENU_CODE_Y_POS, LEVEL_CODE_SIZE - 1, 1);
-		
+	len = 0;
+
 	while(1)
 		{
 		in_wait_key();
@@ -151,19 +159,18 @@ unsigned char do_code()
 				ascii = ascii - 0x20;
 			
 			// In UPPER case A-Z range?
-			if(ascii > 0x40 && ascii < 0x5b && len < LEVEL_CODE_SIZE - 1) 
+			if(ascii > 0x40 && ascii < 0x5b)
 				{
 				// Add character to code.
-				if(len < LEVEL_CODE_SIZE - 1)
+				if(len < (LEVEL_CODE_SIZE - 1))
 					{
 					code[len]= ascii;
 					len++;
-					
+
 					draw_text(MENU_CODE_X_POS, MENU_CODE_Y_POS, code);
 					}
 				}
-				
-			if(ascii==0xc && len >=0)
+			else if(ascii==0xc)// && len >=0)
 				{
 				// Pressed DELETE.
 				if(len)
@@ -173,7 +180,7 @@ unsigned char do_code()
 				draw_text(MENU_CODE_X_POS + len, MENU_CODE_Y_POS, " ");
 				}
 				
-			if(ascii==0xd)
+			else if(ascii==0xd)
 				// Pressed ENTER.
 				break;
 			
@@ -181,8 +188,6 @@ unsigned char do_code()
 			// less twitchy.
 			sound_effect(250,30);
 			}
-			
-			
 		}
 		
 	// Try and match our code.
@@ -195,7 +200,7 @@ void do_menu()
 	unsigned char *character, *p;
 
 	// Reset scroller.
-	scroll_char = &scroll_text[0];
+	scroll_char = (char *)&scroll_text[0];
 	scroll_rem = 0;
 	
 	clear_scroll_buffer();		
@@ -209,13 +214,13 @@ void do_menu()
 	// Draw a pretty border :).
 	for(i = 0; i < 24;i=i+2)
 		{
-		draw_tile(0, i, backgrounds[2]);	
-		draw_tile(30, i, backgrounds[2]);	
+		draw_tile(0, i, (unsigned char *)backgrounds[2]);
+		draw_tile(30, i, (unsigned char *)backgrounds[2]);
 		}
 	for(i = 2; i < 30;i=i+2)
 		{
-		draw_tile(i, 0, backgrounds[2]);	
-		draw_tile(i, 22, backgrounds[2]);	
+		draw_tile(i, 0, (unsigned char *)backgrounds[2]);
+		draw_tile(i, 22, (unsigned char *)backgrounds[2]);
 		}
 		
 	rect(INK_RED + PAPER_BLACK, 9, 4, 13, 1);
@@ -240,10 +245,11 @@ void do_menu()
 			{
 			// Load character into buffer.
 			i = (*scroll_char) - 0x20;
-			p = SCROLL_CHAR;	
+			p = (unsigned char *)SCROLL_CHAR;
 			character = (unsigned char *)(FONT + (i * 8));
+			i = 0;
 						
-			for(i= 0; i < 8; i++)
+			for(; i < 8; i++)
 				{
 				*p = *character;
 				p++;
@@ -261,7 +267,7 @@ void do_menu()
 					
 		if(*scroll_char==0)
 			// Reset the scroll.
-			scroll_char = &scroll_text[0];	
+			scroll_char = (char *)&scroll_text[0];
 
 		new_menu_option = check_menu_keys();	
 		if(new_menu_option!=MENU_NO_SELECTION)

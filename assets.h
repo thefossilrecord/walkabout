@@ -46,6 +46,10 @@
 
 #define MAX_BACKGROUND	10
 
+#ifdef __SDCC
+extern unsigned short backgrounds[MAX_BACKGROUND];
+#else
 extern unsigned char *backgrounds[MAX_BACKGROUND];
+#endif
 
 #endif

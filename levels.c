@@ -432,7 +432,7 @@ struct level_data levels[MAX_LEVELS] =
 
 char * get_level_code(char level)
 	{
-	return(&levels[level].code);
+	return((char *)&levels[level].code);
 	}
 
 int find_level_from_code(char *code)

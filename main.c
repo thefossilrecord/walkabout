@@ -83,8 +83,17 @@ MEMORY MAP:
 #define LIVES		3
 #define START_LEVEL	1
 
+#ifdef __SCCZ80
+#define JOYFUNC void*
+#endif
+
+#ifdef __SDCC
+typedef uint16_t (*JOYFUNC)(udk_t *);
+#endif
+
 udk_t k;
-void *joystick;
+JOYFUNC joystick;
+
 unsigned char px, py, state, lives, level, remaining, backg, backg_attr;
 char level_buffer[LEVEL_BUFFER_SIZE];
 char game_over[]="GAME OVER!";
@@ -95,7 +104,11 @@ char level_count[4]="000";
 char lookup[]= "0123456789";
 int interrupt_timer = 0;
 
+#ifdef __SDCC
+unsigned short backgrounds[MAX_BACKGROUND]=
+#else
 unsigned char *backgrounds[MAX_BACKGROUND]=
+#endif
 	{
 	TILE_BACKGROUND_BLANK,
 	TILE_BACKGROUND_SQUARES,
@@ -146,21 +159,21 @@ void my_itoa(int value, char *buffer, int buffer_len)
 void draw_player(unsigned char x, unsigned char y, unsigned char frame)
 	{
 	// Draw the player tile.
-	unsigned char *p = TILE_PLAYER + (frame * TILE_BYTES);
+	unsigned char *p = (unsigned char *)(TILE_PLAYER + (frame * TILE_BYTES));
 	draw_tile((x * 2) + X_OFFSET, (y * 2), p);
 	}
 	
 void draw_level_tile(unsigned char x, unsigned char y, unsigned char b)
 	{
-	unsigned char *tile = TILE_TILE;
-	unsigned char *p = SCREEN_ATTRIBUTES + ((y * 2) * 32) + (x * 2) + X_OFFSET;
+	unsigned char *tile = (unsigned char *)TILE_TILE;
+	unsigned char *p = (unsigned char *)(SCREEN_ATTRIBUTES + ((y * 2) * 32) + (x * 2) + X_OFFSET);
 
 	unsigned char attr = block_attrs[b - 48]; // Subtract ASCII 0 from block.
 
 	if(attr==7)
 		{
 		// Drawing a blank.
-		tile = backgrounds[backg];
+		tile = (unsigned char *)backgrounds[backg];
 		attr = backg_attr;
 		}
 
@@ -226,7 +239,7 @@ void draw_death()
 		halt
 		halt
 		halt
-		__endasm
+		__endasm;
 		}
 	}
 	
@@ -371,25 +384,25 @@ void do_init()
 			k.down  = in_key_scancode(keys[1]);	// defaults to 'a';
 			k.fire = in_key_scancode(keys[4]);	// defaults to ' ';
 	
-			joystick = (void *)in_stick_keyboard;
+			joystick = (JOYFUNC)in_stick_keyboard;
 			}
 			break;
 			
 		case MENU_KEMPSTON:
 			{	
-			joystick = (void *)in_stick_kempston;
+			joystick = (JOYFUNC)in_stick_kempston;
 			}
 			break;
 
 		case MENU_SINCLAIR1:
 			{	
-			joystick = (void *)in_stick_sinclair1;
+			joystick = (JOYFUNC)in_stick_sinclair1;
 			}
 			break;
 
 		case MENU_SINCLAIR2:
 			{
-			joystick = (void *)in_stick_sinclair2;
+			joystick = (JOYFUNC)in_stick_sinclair2;
 			}
 			break;
 		}
@@ -454,9 +467,9 @@ void interrupts(char install)
 	if(install)
 		{
 		// Install interrupt handler.
-		p = INTERRUPT_JUMP + 1;
+		p = (unsigned short *)(INTERRUPT_JUMP + 1);
 		// Copy interrupt function address to INTERRUPT_JUMP + 1.
-		*p = isr;
+		*p = (unsigned short)isr;
 		__asm
 		di
 			
@@ -481,7 +494,7 @@ void interrupts(char install)
 		ld i, a
 		im 2
 		ei
-		__endasm
+		__endasm;
 		}
 	else
 		{
@@ -493,13 +506,14 @@ void interrupts(char install)
 		im 1
 		ei
 			
-		__endasm
+		__endasm;
 		}
 	}
 	
 main()
 	{
-	unsigned char wait = 0, i, direction;
+	unsigned char wait = 0, i;
+	unsigned int direction;
 				
 	border(0);
 	// Set intial menu option to keyboard.
@@ -508,12 +522,12 @@ main()
 	set_state(STATE_MENU);
 
 #ifdef AY_MUSIC
-	#asm
+	__asm
 
 	ld hl, MUSIC_TUNE
 	call MUSIC_INIT
 		
-	#endasm
+	__endasm;
 #endif
 		
 	// Install IM2 handler.
@@ -632,7 +646,7 @@ main()
 		set_state(STATE_GAMEOVER);
 		while(state==STATE_GAMEOVER);
 		}
-		
+
 	interrupts(0);
 	}
 	
