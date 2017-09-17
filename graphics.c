@@ -52,15 +52,15 @@ void rect(unsigned char attr, unsigned char x, unsigned char y, unsigned char w,
 // Draw a 16x16 tile.	
 void draw_tile(unsigned char x, unsigned char y, unsigned char *tile)
 	{
-	unsigned char *p = zx_cyx2saddr(y, x);
+	unsigned char *p = zx_cxy2saddr(x, y);
 	draw_block2(p, tile);
-	p = zx_cyx2saddr(y+1, x);
+	p = zx_cxy2saddr(x, y + 1);
 	draw_block2(p,tile + 16);
 	}
 	
 void draw_text(unsigned char x, unsigned char y, char *text)
 	{
-	unsigned char *p = zx_cyx2saddr(y,x), *character;
+	unsigned char *p = zx_cxy2saddr(x, y), *character;
 	unsigned char v;
 	while(*text)
 		{

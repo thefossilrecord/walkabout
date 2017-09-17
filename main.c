@@ -83,14 +83,6 @@ MEMORY MAP:
 #define LIVES		3
 #define START_LEVEL	1
 
-#ifdef __SCCZ80
-#define JOYFUNC void*
-#endif
-
-#ifdef __SDCC
-typedef uint16_t (*JOYFUNC)(udk_t *);
-#endif
-
 udk_t k;
 JOYFUNC joystick;
 
